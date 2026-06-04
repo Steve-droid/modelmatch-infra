@@ -3,7 +3,7 @@
 > **SHELL repo (inactive).** Activates when the infrastructure stories begin (after the app core
 > works). This README describes the intended shape; run instructions land when the repo goes ACTIVE.
 > Part of the [ModelMatch portfolio build](../CLAUDE.md); spec in
-> [`../docs/planning/architecture.md`](../docs/planning/architecture.md) §12 and `../instructions/lesson-03..04`.
+> [`../docs/planning/architecture.md`](../docs/planning/architecture.md) §12 and `../docs/instructions/lesson-03..04`.
 
 ## Overview
 

@@ -20,4 +20,4 @@ on the backend ServiceAccount), **S3** (Terraform state + ingestion blobs). Regi
 version; single NAT + single ingress LB; ECR lifecycle policy; tag every resource;
 `apply` at day start / **`destroy` at day end** + orphan check (no stray ELB/EBS/EIP/NAT).
 
-See the umbrella `../CLAUDE.md` and `../docs/planning/architecture.md` §12 + `../instructions/lesson-03..04`.
+See the umbrella `../CLAUDE.md` and `../docs/planning/architecture.md` §12 + `../docs/instructions/lesson-03..04`.
