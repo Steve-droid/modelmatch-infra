@@ -1,5 +1,12 @@
-# Consumed by the platform stack's backend config and (later slices) by
-# terraform_remote_state for cross-stack values (ECR URLs, bucket ARNs).
+# Cross-stack outputs: the platform stack (and later CI / gitops) read these via a
+# `terraform_remote_state` data source pointed at this bootstrap state — ECR URLs/ARNs, the
+# state-bucket name/ARN, the budget topic.
+#
+# NOTE: the platform `backend "s3"` block does NOT read these. A backend block accepts only
+# literals (no variables, no remote_state), so bucket/key/region are hardcoded there and kept
+# in sync across the two backend.tf files by hand (see modelmatch-infra/CLAUDE.md). These
+# outputs feed the `terraform_remote_state` data source (which can take config) and `terraform
+# output` for humans/scripts — not the backend block.
 output "state_bucket_name" {
   description = "Name of the S3 bucket holding Terraform remote state."
   value       = aws_s3_bucket.tf_state.id
