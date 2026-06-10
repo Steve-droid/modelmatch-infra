@@ -66,6 +66,66 @@ cd platform  && terraform destroy                     # day end, then run the or
 Auth uses the default AWS credential chain (the `default` profile / env vars) — no `profile` is
 hardcoded in HCL, and no static keys are committed.
 
+## Cost alerting (P2)
+
+The financial ground-truth backstop, created **early** (before the first EKS apply) and in the
+**persistent `bootstrap/` stack** so it survives the daily `platform/` destroy.
+
+```
+  aws_budgets_budget (modelmatch-monthly-cost, $25/mo, COST)
+        │   notify @ 80% ACTUAL  +  100% FORECASTED   (both % of the cap)
+        ├──────────────────────────────────────────────┐
+        ▼                                               ▼
+  subscriber_email_addresses              subscriber_sns_topic_arns
+  → stevelevit230@gmail.com               → aws_sns_topic modelmatch-budget-alerts ⚠ us-east-1
+    (RELIABLE channel)                       (+ topic policy: allow budgets.amazonaws.com
+                                              to SNS:Publish, scoped to our account)
+                                             → email subscription (pattern + future fan-out)
+```
+
+**Two delivery channels, on purpose:**
+
+- **Budget-native email** (`subscriber_email_addresses`) is the **reliable** channel. These mails come
+  straight from AWS Budgets and carry **no unsubscribe link**, so Gmail's link-prefetch (security
+  scanning of incoming mail) can't silently deactivate them.
+- **SNS topic** (`subscriber_sns_topic_arns`) is kept for the topic/subscription pattern and future
+  programmatic fan-out (Slack/Lambda) — **not** relied on for email. SNS *raw email* subscriptions are
+  fragile with Gmail: the unsubscribe link in every SNS notification gets prefetched on receipt and
+  auto-deactivates the subscription. (Known failure mode; documented here so we don't relearn it.)
+
+**Why us-east-1:** AWS Budgets is a *global* service whose backend runs in us-east-1, and a budget can
+only notify an SNS topic that also lives in us-east-1. The budget itself is managed through the default
+`ap-south-1` provider (Budgets is global); only the topic needs the `aws.us_east_1` alias.
+
+**Scope:** covers AWS-side spend (EKS control plane + NAT + EBS + data transfer). Anthropic app-API
+spend is tracked separately on the Anthropic console — *not* here. Per lesson-04, cost stays out of
+Prometheus; this Budget + Cost Explorer is the financial signal, token metrics are the operational one.
+
+**Verifying the alert path (the budget-native channel is the one that matters):**
+
+AWS Budgets has no "send test notification" button — a real email only fires when AWS evaluates
+month-to-date spend against the threshold (a few times a day). To prove it end-to-end without waiting
+for a real overrun, temporarily lower the limit below current MTD spend so the threshold trips, then
+restore it (keep the real limit out of the change by using a `-var` override):
+
+```bash
+aws ce get-cost-and-usage --region us-east-1 \
+  --time-period Start=$(date +%Y-%m-01),End=$(date +%Y-%m-%d) \
+  --granularity MONTHLY --metrics UnblendedCost \
+  --query 'ResultsByTime[0].Total.UnblendedCost'          # current month-to-date spend
+
+terraform apply -var="budget_limit_amount=1"   # 80% = $0.80 < MTD spend → trips on next eval
+#   … wait for the budget email (from budgets@costalerts.amazonaws.com), then:
+terraform apply                                 # restore to the committed $25 limit
+```
+
+> **Verification performed 2026-06-10:** limit temporarily dropped to `$1` via `-var` against a
+> month-to-date spend of `$1.55`. Both notifications fired as real budget-native emails from
+> `budgets@costalerts.amazonaws.com`, delivered to the subscriber's **inbox** (not spam):
+> **ACTUAL** `$1.55 > $0.80` (80% of $1) and **FORECASTED** `$4.82 > $1.00` (100% of $1).
+> Limit restored to `$25`; final `terraform plan` = no changes. The SNS email subscription was
+> separately confirmed active (`PendingConfirmation: false`).
+
 ## Conventions
 
 - **Providers yes, third-party modules no** (hard rule): official providers like `hashicorp/aws` are
