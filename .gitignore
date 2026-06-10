@@ -5,7 +5,7 @@
 crash.log
 *.tfvars
 !example.tfvars
-.terraform.lock.hcl
+# .terraform.lock.hcl IS committed (pins provider versions/hashes for reproducible init in CI).
 
 # Env / secrets
 .env
