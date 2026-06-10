@@ -14,3 +14,9 @@ output "aws_region" {
   description = "Region the state bucket lives in."
   value       = var.aws_region
 }
+
+# Exposed for future fan-out (Slack/Lambda subscribers) and so platform/ could notify it later.
+output "budget_alerts_topic_arn" {
+  description = "ARN of the SNS topic that receives AWS Budgets alerts (us-east-1)."
+  value       = aws_sns_topic.budget_alerts.arn
+}

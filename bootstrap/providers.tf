@@ -16,3 +16,21 @@ provider "aws" {
     }
   }
 }
+
+# AWS Budgets is a GLOBAL service whose backend lives in us-east-1, and a budget can only
+# notify an SNS topic that also lives in us-east-1. This aliased provider exists solely to
+# host the budget-alert SNS topic + subscription there (see sns.tf). Same default_tags so the
+# topic is tagged identically to everything else in this stack.
+provider "aws" {
+  alias  = "us_east_1"
+  region = "us-east-1"
+
+  default_tags {
+    tags = {
+      owner       = "steve"
+      project     = "modelmatch"
+      environment = "dev"
+      stack       = "bootstrap"
+    }
+  }
+}
