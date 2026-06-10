@@ -20,3 +20,15 @@ output "budget_alerts_topic_arn" {
   description = "ARN of the SNS topic that receives AWS Budgets alerts (us-east-1)."
   value       = aws_sns_topic.budget_alerts.arn
 }
+
+# Re-exported from the ECR module so platform/ and gitops can resolve image locations via
+# terraform_remote_state on this bootstrap stack (no hardcoded registry URLs).
+output "ecr_repository_urls" {
+  description = "Map of ECR repository name -> repository URL (no tag)."
+  value       = module.ecr.repository_urls
+}
+
+output "ecr_repository_arns" {
+  description = "Map of ECR repository name -> repository ARN."
+  value       = module.ecr.repository_arns
+}

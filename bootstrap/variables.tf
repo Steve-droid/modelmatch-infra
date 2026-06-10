@@ -21,3 +21,9 @@ variable "alert_email" {
   type        = string
   default     = "stevelevit230@gmail.com"
 }
+
+variable "ecr_repository_names" {
+  description = "ECR repositories adopted into Terraform (FE / BE / agent). Imported in P5 — they predate Terraform and hold the live :1.0.0 images."
+  type        = list(string)
+  default     = ["modelmatch-backend", "modelmatch-frontend", "modelmatch-agent"]
+}
