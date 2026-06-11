@@ -27,3 +27,9 @@ variable "ecr_repository_names" {
   type        = list(string)
   default     = ["modelmatch-backend", "modelmatch-frontend", "modelmatch-agent"]
 }
+
+variable "ingestion_bucket_name" {
+  description = "S3 bucket for catalog-ingestion source docs (S5b). APP CONTRACT — must match the default of `s3_bucket` in modelmatch-backend/app/config.py; the P7 IRSA role-A policy scopes to its ARN."
+  type        = string
+  default     = "modelmatch-ingestion-sources"
+}

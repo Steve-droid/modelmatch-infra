@@ -39,3 +39,15 @@ output "ecr_repository_arns" {
   description = "Map of ECR repository name -> repository ARN."
   value       = module.ecr.repository_arns
 }
+
+# Ingestion bucket (P6). Read by platform/ via terraform_remote_state so the P7 IRSA role-A
+# policy can scope s3 access to this exact ARN — the app contract, not duplicated as a literal.
+output "ingestion_bucket_name" {
+  description = "Name of the S3 bucket holding catalog-ingestion source docs (S5b)."
+  value       = aws_s3_bucket.ingestion.id
+}
+
+output "ingestion_bucket_arn" {
+  description = "ARN of the ingestion bucket — scoped into the P7 IRSA role-A policy."
+  value       = aws_s3_bucket.ingestion.arn
+}
