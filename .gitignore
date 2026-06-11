@@ -5,6 +5,9 @@
 crash.log
 *.tfvars
 !example.tfvars
+# Committed NON-SECRET stack values, passed via -var-file (Roey: defaultless variables.tf + explicit
+# tfvars). Secrets never live in tfvars — they come from Secrets Manager via ESO/IRSA.
+!platform/dev.tfvars
 # .terraform.lock.hcl IS committed (pins provider versions/hashes for reproducible init in CI).
 
 # Env / secrets
@@ -15,3 +18,4 @@ crash.log
 .DS_Store
 .idea/
 .vscode/
+*.bkp
