@@ -78,3 +78,40 @@ variable "public_access_cidrs" {
   description = "Source CIDRs allowed to reach the public API endpoint (e.g. the laptop IP as a /32)."
   type        = list(string)
 }
+
+# --- IRSA (P7) ---
+
+variable "bedrock_inference_profile_ids" {
+  description = "Inference-profile IDs the backend invokes (e.g. apac.amazon.nova-lite-v1:0, global.amazon.nova-2-lite-v1:0). Built into account-specific profile ARNs in role A's policy."
+  type        = list(string)
+}
+
+variable "bedrock_foundation_model_ids" {
+  description = "Foundation-model IDs the above profiles route to (e.g. amazon.nova-lite-v1:0). Built into region-wildcarded, model-pinned foundation-model ARNs in role A's policy."
+  type        = list(string)
+}
+
+variable "app_secret_name" {
+  description = "Secrets Manager secret name for the app's platform secrets (e.g. modelmatch/app). Role B is scoped to this name plus the random 6-char suffix glob."
+  type        = string
+}
+
+variable "backend_namespace" {
+  description = "Kubernetes namespace of the backend pod's ServiceAccount (role A trust subject)."
+  type        = string
+}
+
+variable "backend_service_account" {
+  description = "Name of the backend ServiceAccount (role A trust subject; annotated with role A in P14)."
+  type        = string
+}
+
+variable "eso_namespace" {
+  description = "Kubernetes namespace of the External Secrets Operator controller ServiceAccount (role B trust subject)."
+  type        = string
+}
+
+variable "eso_service_account" {
+  description = "Name of the ESO controller ServiceAccount (role B trust subject; used by the SecretStore in P12)."
+  type        = string
+}
