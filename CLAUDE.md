@@ -55,8 +55,8 @@ download a module from the registry or a Git URL, it's banned.
 ## Variables & values — defaultless `variables.tf` + explicit `-var-file` (Roey, hard rule)
 
 **`variables.tf` declares inputs only, with NO defaults.** Concrete **non-secret** values live in an
-explicit `.tfvars` file (e.g. `platform/dev.tfvars`), passed on **every** command with
-**`-var-file=dev.tfvars`**. **Do not rely on auto-loaded `terraform.tfvars` / `*.auto.tfvars`** —
+explicit `.tfvars` file (`bootstrap/dev.tfvars`, `platform/dev.tfvars`), passed on **every** command
+with **`-var-file=dev.tfvars`**. **Do not rely on auto-loaded `terraform.tfvars` / `*.auto.tfvars`** —
 the var-file is always named explicitly so nothing is implicit.
 
 - **Why:** predictability — a forgotten `default` (or a silently auto-loaded tfvars) can feed a
@@ -67,11 +67,14 @@ the var-file is always named explicitly so nothing is implicit.
   `dev.tfvars`; `module`/`provider` blocks read `var.*` (e.g. region is `var.aws_region`).
 - **Secrets never go in tfvars** — they reach the cluster via Secrets Manager (ESO + IRSA). The
   committed `dev.tfvars` is non-secret on purpose; `.gitignore` ignores `*.tfvars` but **un-ignores
-  `platform/dev.tfvars`** specifically.
-- Always run `plan`/`apply` as `terraform -chdir=platform <cmd> -var-file=dev.tfvars`.
+  `bootstrap/dev.tfvars` + `platform/dev.tfvars`** specifically.
+- Always run `plan`/`apply` with the var-file explicit:
+  `terraform -chdir=bootstrap <cmd> -var-file=dev.tfvars` and
+  `terraform -chdir=platform <cmd> -var-file=dev.tfvars`.
 
-> `bootstrap/` predates this rule and still carries defaults — migrate it opportunistically; all **new**
-> HCL follows the rule from P3 onward.
+> **Both stack roots follow this rule.** `bootstrap/` originally carried `default`s (it predated the
+> rule); it was migrated to defaultless `variables.tf` + `bootstrap/dev.tfvars` — the tfvars values are
+> byte-identical to the old defaults, so the migration is a no-op to the plan.
 
 ## Tagging (FinOps + orphan hunt depend on it)
 
