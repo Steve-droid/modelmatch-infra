@@ -26,3 +26,18 @@ node_max_size       = 3 # cap at 3
 endpoint_public_access  = true
 endpoint_private_access = true
 public_access_cidrs     = ["5.29.38.37/32"] # Steve's laptop public IP — update if it changes
+
+# --- IRSA (P7) ---
+# Bedrock Nova surfaces the backend invokes (verified live in ap-south-1, 2026-06-13):
+# Nova Lite via the APAC cross-region profile; Nova 2-Lite via the GLOBAL profile (NOT apac.).
+bedrock_inference_profile_ids = ["apac.amazon.nova-lite-v1:0", "global.amazon.nova-2-lite-v1:0"]
+bedrock_foundation_model_ids  = ["amazon.nova-lite-v1:0", "amazon.nova-2-lite-v1:0"]
+
+# Secrets Manager path ESO (role B) reads; the -?????? suffix glob is appended in HCL.
+app_secret_name = "modelmatch/app"
+
+# ServiceAccount subjects baked into the trust policies — MUST match the future Helm charts (P12/P14).
+backend_namespace       = "app"
+backend_service_account = "modelmatch-backend"
+eso_namespace           = "external-secrets"
+eso_service_account     = "external-secrets"

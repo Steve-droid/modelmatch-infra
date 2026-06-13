@@ -92,3 +92,15 @@ output "ebs_csi_role_arn" {
   description = "EBS CSI driver IRSA role ARN."
   value       = module.eks.ebs_csi_role_arn
 }
+
+# --- IRSA (P7) — role ARNs for chart annotations (P14 backend SA / P12 ESO SecretStore) ---
+
+output "irsa_backend_role_arn" {
+  description = "Role A ARN — annotate on the backend SA (app/modelmatch-backend) in P14; grants Bedrock Nova InvokeModel + ingestion S3 GetObject/PutObject."
+  value       = module.irsa_backend.role_arn
+}
+
+output "irsa_eso_role_arn" {
+  description = "Role B ARN — used by the ESO SecretStore (external-secrets/external-secrets) in P12; grants secretsmanager:GetSecretValue on the app secret path."
+  value       = module.irsa_eso.role_arn
+}
