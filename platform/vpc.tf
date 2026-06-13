@@ -8,4 +8,9 @@ module "vpc" {
   az_count        = var.az_count
   subnet_newbits  = var.subnet_newbits
   enable_eks_tags = var.enable_eks_tags
+
+  # EKS cluster-ownership tag on both subnet tiers (used by LB subnet auto-discovery later).
+  # Built from the cluster name here so the VPC module stays cluster-name-agnostic (P4 fork 4).
+  public_subnet_extra_tags  = { "kubernetes.io/cluster/${var.cluster_name}" = "shared" }
+  private_subnet_extra_tags = { "kubernetes.io/cluster/${var.cluster_name}" = "shared" }
 }

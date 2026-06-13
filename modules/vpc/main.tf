@@ -51,7 +51,8 @@ resource "aws_subnet" "public" {
 
   tags = merge(
     { Name = "${var.name_prefix}-public-${local.azs[count.index]}" },
-    var.enable_eks_tags ? { "kubernetes.io/role/elb" = "1" } : {}
+    var.enable_eks_tags ? { "kubernetes.io/role/elb" = "1" } : {},
+    var.public_subnet_extra_tags
   )
 }
 
@@ -64,7 +65,8 @@ resource "aws_subnet" "private" {
 
   tags = merge(
     { Name = "${var.name_prefix}-private-${local.azs[count.index]}" },
-    var.enable_eks_tags ? { "kubernetes.io/role/internal-elb" = "1" } : {}
+    var.enable_eks_tags ? { "kubernetes.io/role/internal-elb" = "1" } : {},
+    var.private_subnet_extra_tags
   )
 }
 
