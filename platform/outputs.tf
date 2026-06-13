@@ -40,3 +40,55 @@ output "s3_vpc_endpoint_id" {
   description = "S3 gateway endpoint ID."
   value       = module.vpc.s3_vpc_endpoint_id
 }
+
+# --- EKS (P4) — re-exported for P7 (IRSA binds to the OIDC issuer/ARN) + kubectl/Helm wiring ---
+
+output "cluster_name" {
+  description = "EKS cluster name (aws eks update-kubeconfig --name <this>)."
+  value       = module.eks.cluster_name
+}
+
+output "cluster_endpoint" {
+  description = "Cluster API server endpoint URL."
+  value       = module.eks.cluster_endpoint
+}
+
+output "cluster_certificate_authority_data" {
+  description = "Base64 cluster CA certificate."
+  value       = module.eks.cluster_certificate_authority_data
+}
+
+output "cluster_version" {
+  description = "Kubernetes version running on the control plane."
+  value       = module.eks.cluster_version
+}
+
+output "cluster_security_group_id" {
+  description = "EKS-managed cluster security group ID (control-plane ↔ node traffic; later slices may reference it)."
+  value       = module.eks.cluster_security_group_id
+}
+
+output "oidc_issuer_url" {
+  description = "Cluster OIDC issuer URL (P7 IRSA trust)."
+  value       = module.eks.oidc_issuer_url
+}
+
+output "oidc_provider_arn" {
+  description = "IAM OIDC provider ARN (P7 IRSA trust)."
+  value       = module.eks.oidc_provider_arn
+}
+
+output "node_group_name" {
+  description = "Managed node group name."
+  value       = module.eks.node_group_name
+}
+
+output "node_role_arn" {
+  description = "Worker node IAM role ARN."
+  value       = module.eks.node_role_arn
+}
+
+output "ebs_csi_role_arn" {
+  description = "EBS CSI driver IRSA role ARN."
+  value       = module.eks.ebs_csi_role_arn
+}
