@@ -115,3 +115,40 @@ variable "eso_service_account" {
   description = "Name of the ESO controller ServiceAccount (role B trust subject; used by the SecretStore in P12)."
   type        = string
 }
+
+# --- ArgoCD + App-of-Apps (P10) ---
+
+variable "argocd_chart_version" {
+  description = "Pinned version of the upstream argo-cd Helm chart (argoproj/argo-helm). E.g. 9.5.21 -> ArgoCD app v3.4.x."
+  type        = string
+}
+
+variable "argocd_apps_chart_version" {
+  description = "Pinned version of the upstream argocd-apps Helm chart that seeds the root App-of-Apps Application."
+  type        = string
+}
+
+variable "argocd_namespace" {
+  description = "Namespace ArgoCD installs into (also where the root Application lives). Must be one of kubernetes_namespaces."
+  type        = string
+}
+
+variable "kubernetes_namespaces" {
+  description = "The cluster namespaces Terraform creates (argocd/app/monitoring/logging). 'app' MUST equal backend_namespace (IRSA role A subject)."
+  type        = list(string)
+}
+
+variable "gitops_repo_url" {
+  description = "Git URL of the gitops repo the root app syncs from. HTTPS form — the repo is public, so ArgoCD reads it anonymously with no credential."
+  type        = string
+}
+
+variable "gitops_target_revision" {
+  description = "Branch/tag/revision the root app tracks (e.g. main)."
+  type        = string
+}
+
+variable "gitops_apps_path" {
+  description = "Path within the gitops repo holding child Application manifests (e.g. argocd/apps)."
+  type        = string
+}
