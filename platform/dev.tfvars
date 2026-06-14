@@ -41,3 +41,17 @@ backend_namespace       = "app"
 backend_service_account = "modelmatch-backend"
 eso_namespace           = "external-secrets"
 eso_service_account     = "external-secrets"
+
+# --- ArgoCD + App-of-Apps (P10) ---
+# Chart versions pinned from argoproj/argo-helm (verified 2026-06-14): argo-cd 9.5.21 -> ArgoCD v3.4.3.
+argocd_chart_version      = "9.5.21"
+argocd_apps_chart_version = "2.0.5"
+argocd_namespace          = "argocd"
+
+# The 4 cluster namespaces Terraform owns. "app" MUST match backend_namespace above (IRSA role A subject).
+kubernetes_namespaces = ["argocd", "app", "monitoring", "logging"]
+
+# The root app syncs from the PUBLIC gitops repo over HTTPS — ArgoCD reads it anonymously, no credential.
+gitops_repo_url        = "https://github.com/Steve-droid/modelmatch-gitops.git"
+gitops_target_revision = "main"
+gitops_apps_path       = "argocd/apps"

@@ -104,3 +104,30 @@ output "irsa_eso_role_arn" {
   description = "Role B ARN — used by the ESO SecretStore (external-secrets/external-secrets) in P12; grants secretsmanager:GetSecretValue on the app secret path."
   value       = module.irsa_eso.role_arn
 }
+
+# --- ArgoCD (P10) — verification / access helpers (no secrets emitted) ---
+
+output "cluster_namespaces" {
+  description = "The 4 cluster namespaces Terraform created (argocd/app/monitoring/logging)."
+  value       = sort([for ns in kubernetes_namespace.this : ns.metadata[0].name])
+}
+
+output "argocd_namespace" {
+  description = "Namespace ArgoCD is installed in."
+  value       = helm_release.argocd.namespace
+}
+
+output "argocd_version" {
+  description = "Installed argo-cd chart version (app version is the chart's appVersion)."
+  value       = helm_release.argocd.version
+}
+
+output "argocd_admin_password_cmd" {
+  description = "How to retrieve the initial ArgoCD admin password (the secret itself is never output)."
+  value       = "kubectl -n ${var.argocd_namespace} get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d"
+}
+
+output "argocd_port_forward_cmd" {
+  description = "Port-forward to the ArgoCD UI for the P10 demo (HTTPS ingress is P15). Then open https://localhost:8080 (user: admin)."
+  value       = "kubectl -n ${var.argocd_namespace} port-forward svc/argocd-server 8080:443"
+}

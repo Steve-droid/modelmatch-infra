@@ -14,5 +14,17 @@ terraform {
       source  = "hashicorp/tls"
       version = "~> 4.0"
     }
+    # P10 — installs ArgoCD via the upstream argo-cd Helm chart (provider-yes / module-no: an official
+    # PROVIDER + an upstream CHART is allowed; a community Terraform module is not). v2.x for the
+    # well-documented nested `kubernetes {}` provider block.
+    helm = {
+      source  = "hashicorp/helm"
+      version = "~> 2.17"
+    }
+    # P10 — creates the 4 cluster namespaces ArgoCD + the app workloads live in.
+    kubernetes = {
+      source  = "hashicorp/kubernetes"
+      version = "~> 2.30"
+    }
   }
 }
