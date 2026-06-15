@@ -7,10 +7,10 @@ Region **`ap-south-1`**, account **`832285994273`**.
 > the locked DevOps backlog `../docs/planning/01-devops-backlog.md` (Epic **E10**), and
 > `../docs/instructions/lesson-03` (Infrastructure) + `lesson-04` (FinOps).
 
-## Two stacks, two lifecycles (the central design rule)
+## Three stacks, three lifecycles (the central design rule)
 
-So the daily `destroy` can never nuke state, images, or the budget, Terraform is split into two root
-stacks with **separate state**:
+So the daily `destroy` can never nuke state, images, the budget, **or the CI controller**, Terraform is
+split into three root stacks with **separate state**:
 
 ```
 modelmatch-infra/
@@ -18,13 +18,21 @@ modelmatch-infra/
 │   └── S3 state bucket + lock (P1) · AWS Budget+SNS (P2) · ECR repos imported (P5) · S3 ingestion bucket (P6)
 ├── platform/    # EPHEMERAL — `apply` at day start / `destroy` at day end
 │   └── VPC+1×NAT (P3) · EKS+OIDC+nodes (P4) · IRSA roles A/B (P7)   ← the ONLY stack destroyed daily
+├── jenkins/     # PERSISTENT — CI controller; survives every platform destroy (P16, E11; Roey 2026-06-15)
+│   └── Jenkins EC2 + EIP + SG + IAM instance profile + persistent EBS (/var/lib/jenkins) + optional backup bucket
 └── modules/     # our OWN reusable modules (vpc, eks, ecr, iam-irsa, …) — populated from P3
 ```
 
 - `bootstrap/` outputs (state-bucket ARN, ECR URLs, ingestion-bucket ARN) are read by `platform/` via
   `terraform_remote_state` — never duplicated.
 - Each stack has its own `versions.tf` · `providers.tf` · `backend.tf` (+ `variables.tf` / `main.tf` /
-  `outputs.tf` as needed). Same S3 bucket, **different state key** (`bootstrap/…` vs `platform/…`).
+  `outputs.tf` as needed). Same S3 bucket, **different state key** (`bootstrap/…` vs `platform/…` vs
+  `jenkins/…`).
+- **`jenkins/` is persistent** (like `bootstrap/`) but kept a **separate root** because it isn't
+  foundational *shared* infra — it has its own lifecycle + operational surface (EC2, plugins, jobs, an
+  attached disk). Built/proven in **P16**; destroyed only intentionally, never in the daily ritual.
+  `JENKINS_HOME` lives on the persistent EBS volume; S3 = encrypted backup/DR only. See
+  `../docs/planning/mentor-notes-2026-06-15.md` §1–§3.
 
 ## State backend
 
@@ -63,18 +71,22 @@ the var-file is always named explicitly so nothing is implicit.
   `terraform apply` and create resources you didn't mean to. Every value is explicit and in one place.
 - **Modules** (`modules/*/variables.tf`): defaultless variables = the module interface (values come
   from the calling stack, never module defaults).
-- **Stack roots** (`bootstrap/`, `platform/`): defaultless `variables.tf` + a committed non-secret
-  `dev.tfvars`; `module`/`provider` blocks read `var.*` (e.g. region is `var.aws_region`).
+- **Stack roots** (`bootstrap/`, `platform/`, and `jenkins/` once it lands at P16): defaultless
+  `variables.tf` + a committed non-secret `dev.tfvars`; `module`/`provider` blocks read `var.*` (e.g.
+  region is `var.aws_region`).
 - **Secrets never go in tfvars** — they reach the cluster via Secrets Manager (ESO + IRSA). The
   committed `dev.tfvars` is non-secret on purpose; `.gitignore` ignores `*.tfvars` but **un-ignores
-  `bootstrap/dev.tfvars` + `platform/dev.tfvars`** specifically.
+  `bootstrap/dev.tfvars` + `platform/dev.tfvars`** specifically (`jenkins/dev.tfvars` joins the un-ignore
+  list when the `jenkins/` root is created at P16).
 - Always run `plan`/`apply` with the var-file explicit:
-  `terraform -chdir=bootstrap <cmd> -var-file=dev.tfvars` and
-  `terraform -chdir=platform <cmd> -var-file=dev.tfvars`.
+  `terraform -chdir=bootstrap <cmd> -var-file=dev.tfvars`,
+  `terraform -chdir=platform <cmd> -var-file=dev.tfvars`, and
+  `terraform -chdir=jenkins <cmd> -var-file=dev.tfvars` (once `jenkins/` exists).
 
-> **Both stack roots follow this rule.** `bootstrap/` originally carried `default`s (it predated the
-> rule); it was migrated to defaultless `variables.tf` + `bootstrap/dev.tfvars` — the tfvars values are
-> byte-identical to the old defaults, so the migration is a no-op to the plan.
+> **All three stack roots follow this rule** (`jenkins/` adopts it when it lands at P16). `bootstrap/`
+> originally carried `default`s (it predated the rule); it was migrated to defaultless `variables.tf` +
+> `bootstrap/dev.tfvars` — the tfvars values are byte-identical to the old defaults, so the migration is
+> a no-op to the plan.
 
 ## Tagging (FinOps + orphan hunt depend on it)
 
@@ -85,12 +97,13 @@ the var-file is always named explicitly so nothing is implicit.
 | `owner` | `steve` |
 | `project` | `modelmatch` |
 | `environment` | `dev` |
-| `stack` | `bootstrap` \| `platform` (lifecycle discriminator for orphan-hunting) |
+| `stack` | `bootstrap` \| `platform` \| `jenkins` (lifecycle discriminator for orphan-hunting) |
 
 ## Lifecycle & cost discipline
 
 - `terraform apply` on **`platform/`** at day start → **`terraform destroy` on `platform/` at day end**.
-  `bootstrap/` is persistent — **never** in the daily ritual.
+  `bootstrap/` **and `jenkins/`** are persistent — **never** in the daily ritual (`jenkins/` is destroyed
+  only intentionally).
 - **Orphan ritual** after every platform destroy: verify **zero** stray ELBs, **unattached EBS volumes**,
   unattached EIPs, NAT GWs. (An EIP *attached* to the Jenkins box is fine.) Tags make orphans findable.
 - **EKS:** latest in-support k8s version (stale = silent ~6× control-plane charge). **Exactly 1 NAT GW**
@@ -99,10 +112,12 @@ the var-file is always named explicitly so nothing is implicit.
   to the 2 Nova ARNs + the S3 bucket → annotated on the backend SA). Auth on this machine = the default
   credential chain (`default` profile); no `profile` is hardcoded in HCL.
 
-## Out of scope for this repo
+## Repo boundaries (what's here vs not)
 
-- **Jenkins** is pre-provisioned on EC2 with a different lifecycle — **never in Terraform** (keeps
-  `destroy` from taking out CI). ECR *is* here (managed AWS service, outside the cluster).
+- **Jenkins** — **revised 2026-06-15: now IN scope for this repo**, managed by the persistent **`jenkins/`**
+  root above (P16; it was previously planned as pre-provisioned / out-of-Terraform). Kept **out of the
+  daily-destroyed `platform/` stack** so `destroy` can't take out CI, and still **outside the EKS cluster**
+  (standalone EC2). ECR *is* here too (managed AWS service, outside the cluster).
 - **No managed database (no RDS).** The DB is **in-cluster** (Helm subchart + PVC — see
   [`modelmatch-gitops`](../modelmatch-gitops)).
 
