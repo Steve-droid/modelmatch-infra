@@ -9,6 +9,7 @@ crash.log
 # tfvars). Secrets never live in tfvars — they come from Secrets Manager via ESO/IRSA.
 !bootstrap/dev.tfvars
 !platform/dev.tfvars
+!jenkins/dev.tfvars
 # .terraform.lock.hcl IS committed (pins provider versions/hashes for reproducible init in CI).
 
 # Env / secrets

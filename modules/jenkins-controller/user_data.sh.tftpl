@@ -1,0 +1,137 @@
+#!/usr/bin/env bash
+# user_data for the ModelMatch Jenkins CI controller (P16). Designed for a CLEAN Ubuntu 24.04 base.
+# Runs ONCE at first boot (cloud-init). It installs Docker + AWS CLI v2 + Jenkins (native), then
+# relocates JENKINS_HOME onto the dedicated PERSISTENT EBS volume. On a future instance REPLACEMENT
+# the SAME volume reattaches with data already on it, so the format + seed steps are guarded to run
+# only when the volume is empty.
+#
+# Terraform templatefile note: shell variables are escaped with a double dollar so Terraform leaves
+# them to the shell; only the few values Terraform injects use the single-dollar brace syntax. Plain
+# $(cmd) command substitution passes through untouched.
+set -euxo pipefail
+
+JENKINS_HOME="${jenkins_home_mount}"
+VOL_ID_NODASH="$(echo "${jenkins_home_volume_id}" | tr -d '-')"
+BY_ID="/dev/disk/by-id/nvme-Amazon_Elastic_Block_Store_$${VOL_ID_NODASH}"
+export DEBIAN_FRONTEND=noninteractive
+
+# --- base tooling: docker, jq, git, java, aws cli v2 ----------------------------
+apt-get update -y
+apt-get install -y ca-certificates curl gnupg jq git unzip fontconfig openjdk-21-jre docker.io
+
+# AWS CLI v2 (apt ships v1; v2 has the full IMDSv2 / instance-profile chain we rely on)
+curl -fsSL "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o /tmp/awscliv2.zip
+unzip -q /tmp/awscliv2.zip -d /tmp
+/tmp/aws/install --update
+rm -rf /tmp/awscliv2.zip /tmp/aws
+
+systemctl enable --now docker
+
+# --- Jenkins (native, debian-stable LTS repo) -----------------------------------
+# Per the current official Jenkins Debian/Ubuntu install docs, trust the repo with the *published*
+# current LTS signing key (jenkins.io-2026.key = key 7198F4B714ABFC68, "Jenkins Project"). Jenkins
+# rotated away from the old jenkins.io-2023.key (5BA31D57EF5975CA); the 2026 key is what now signs the
+# debian-stable Release. PRIMARY = download that published key (no keyserver dependency at boot). We
+# then VERIFY the keyring actually carries 7198F4B714ABFC68 and only THEN, if the published fetch was
+# missing/wrong, fall back to the Ubuntu keyserver (documented fallback, pinned by id, with retries).
+JENKINS_KEY_ID="7198F4B714ABFC68"
+JENKINS_KEYRING="/usr/share/keyrings/jenkins-keyring.gpg"
+install -m 0755 -d /usr/share/keyrings
+if curl -fsSL https://pkg.jenkins.io/debian-stable/jenkins.io-2026.key -o /tmp/jenkins.key; then
+  gpg --dearmor < /tmp/jenkins.key > "$${JENKINS_KEYRING}" || true
+fi
+rm -f /tmp/jenkins.key
+# Verify the keyring really contains the repo's current signing key; otherwise use the keyserver fallback.
+if ! gpg --no-default-keyring --keyring "$${JENKINS_KEYRING}" --list-keys --with-colons 2>/dev/null | grep -q "$${JENKINS_KEY_ID}"; then
+  echo "published Jenkins key missing/incorrect; falling back to keyserver.ubuntu.com" >&2
+  KR_HOME="$(mktemp -d)"
+  for _ in 1 2 3 4 5; do
+    gpg --homedir "$${KR_HOME}" --batch --keyserver hkps://keyserver.ubuntu.com --recv-keys "$${JENKINS_KEY_ID}" && break
+    echo "keyserver fetch retry ..."; sleep 5
+  done
+  gpg --homedir "$${KR_HOME}" --batch --export "$${JENKINS_KEY_ID}" > "$${JENKINS_KEYRING}"
+  rm -rf "$${KR_HOME}"
+fi
+echo "deb [signed-by=$${JENKINS_KEYRING}] https://pkg.jenkins.io/debian-stable binary/" \
+  > /etc/apt/sources.list.d/jenkins.list
+apt-get update -y
+apt-get install -y jenkins
+# stop it immediately — JENKINS_HOME must move onto the EBS before Jenkins really runs
+systemctl stop jenkins
+
+# --- find + mount the persistent EBS at JENKINS_HOME ----------------------------
+# Prefer the stable Nitro by-id symlink; fall back to the lone non-root, unmounted disk (covers any
+# device-naming surprise). TF attaches the volume after the instance boots, so poll for it first.
+DEV=""
+for _ in $(seq 1 60); do [ -e "$${BY_ID}" ] && { DEV="$${BY_ID}"; break; }; echo "waiting for EBS $${BY_ID} ..."; sleep 5; done
+if [ -z "$${DEV}" ]; then
+  echo "by-id symlink not found; falling back to lsblk disk discovery" >&2
+  # Identify the whole disk backing / robustly. Every step is non-fatal under set -euo pipefail:
+  # findmnt can report /dev/root and lsblk pkname can come back empty — neither must abort the boot.
+  ROOT_SRC="$(findmnt -no SOURCE / 2>/dev/null || true)"
+  ROOT_DISK="$(lsblk -no pkname "$${ROOT_SRC}" 2>/dev/null | head -1 || true)"
+  if [ -z "$${ROOT_DISK}" ]; then
+    # /dev/root or otherwise unresolved: derive the disk from the Ubuntu cloud-image root label.
+    ROOT_FS_DEV="$(readlink -f /dev/disk/by-label/cloudimg-rootfs 2>/dev/null || true)"
+    ROOT_DISK="$(lsblk -no pkname "$${ROOT_FS_DEV}" 2>/dev/null | head -1 || true)"
+  fi
+  # Deterministic last resort: on Nitro the root volume is always nvme0n1, the data EBS is nvme1n1+.
+  : "$${ROOT_DISK:=nvme0n1}"
+  echo "fallback: excluding root disk /dev/$${ROOT_DISK}" >&2
+  for _ in $(seq 1 12); do
+    # the lone non-root whole disk; exact-match exclusion (awk), not a substring grep
+    DEV="$(lsblk -dpno NAME,TYPE 2>/dev/null | awk -v root="/dev/$${ROOT_DISK}" '$2=="disk" && $1!=root {print $1}' | head -1 || true)"
+    { [ -n "$${DEV}" ] && [ -e "$${DEV}" ]; } && break
+    DEV=""; sleep 5
+  done
+fi
+{ [ -n "$${DEV}" ] && [ -e "$${DEV}" ]; } || { echo "could not find the JENKINS_HOME EBS device" >&2; exit 1; }
+echo "using EBS device $${DEV}"
+
+# Format ONLY if the volume has no filesystem (first ever boot). On replacement it already has data.
+if ! blkid "$${DEV}"; then
+  mkfs.ext4 -L jenkins-home "$${DEV}"
+fi
+
+# Seed JENKINS_HOME from the freshly-installed package skeleton the first time (empty volume), then
+# leave it; on replacement the existing data is kept untouched.
+mkdir -p /mnt/jenkins-home-seed
+mount "$${DEV}" /mnt/jenkins-home-seed
+if [ -z "$(ls -A /mnt/jenkins-home-seed)" ] && [ -d "$${JENKINS_HOME}" ]; then
+  cp -a "$${JENKINS_HOME}/." /mnt/jenkins-home-seed/
+fi
+umount /mnt/jenkins-home-seed
+rmdir /mnt/jenkins-home-seed
+
+# Persistent mount by filesystem UUID (nofail so a missing volume never blocks boot).
+UUID="$(blkid -s UUID -o value "$${DEV}")"
+grep -q "$${UUID}" /etc/fstab || \
+  echo "UUID=$${UUID} $${JENKINS_HOME} ext4 defaults,nofail 0 2" >> /etc/fstab
+mount -a
+chown -R jenkins:jenkins "$${JENKINS_HOME}"
+
+# Let the jenkins user drive the Docker socket (CI builds/pushes images on the built-in node).
+usermod -aG docker jenkins
+
+# --- pre-install plugins (best-effort; UI install is the documented fallback) ---
+PLUGINS="${join(" ", jenkins_plugins)}"
+# Pin the plugin-installation-manager-tool version — its release assets are versioned, so the
+# /latest/download/<asset> shortcut 404s (the asset name carries the version).
+PM_VERSION="2.15.0"
+if [ -n "$${PLUGINS}" ]; then
+  curl -fsSL "https://github.com/jenkinsci/plugin-installation-manager-tool/releases/download/$${PM_VERSION}/jenkins-plugin-manager-$${PM_VERSION}.jar" \
+    -o /usr/local/bin/jenkins-plugin-manager.jar || true
+  if [ -f /usr/local/bin/jenkins-plugin-manager.jar ]; then
+    java -jar /usr/local/bin/jenkins-plugin-manager.jar \
+      --war /usr/share/java/jenkins.war \
+      --plugin-download-directory "$${JENKINS_HOME}/plugins" \
+      --plugins $${PLUGINS} || echo "plugin pre-install best-effort failed; install via the UI" >&2
+    chown -R jenkins:jenkins "$${JENKINS_HOME}/plugins" || true
+  fi
+fi
+
+# Default region for the AWS CLI (instance profile supplies creds; region is still required).
+echo "export AWS_DEFAULT_REGION=${aws_region}" > /etc/profile.d/aws-region.sh
+
+systemctl enable jenkins
+systemctl start jenkins
