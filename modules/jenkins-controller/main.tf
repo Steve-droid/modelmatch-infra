@@ -104,12 +104,15 @@ resource "aws_instance" "this" {
   iam_instance_profile        = aws_iam_instance_profile.this.name
   associate_public_ip_address = true
 
-  # IMDSv2 required — the instance-profile creds flow over IMDS; hop limit 1 keeps them off any
-  # container that might run on the box.
+  # IMDSv2 required — the instance-profile creds flow over IMDS. Hop limit 2 (not 1): the CI
+  # pipelines run tool/app containers on the box in the default DOCKER BRIDGE network, which adds
+  # one network hop to IMDS. The backend pipeline's e2e-live stage runs the backend image in
+  # bridge mode and resolves Bedrock creds from the instance profile over IMDSv2 — that needs
+  # hop limit 2 (1 only answers the host's own namespace). Still IMDSv2-required, no static keys.
   metadata_options {
     http_endpoint               = "enabled"
     http_tokens                 = "required"
-    http_put_response_hop_limit = 1
+    http_put_response_hop_limit = 2
   }
 
   root_block_device {
