@@ -51,3 +51,8 @@ variable "node_max_size" {
   description = "Maximum worker node count (3) — the cap for this portfolio's node sizing."
   type        = number
 }
+
+variable "node_max_pods" {
+  description = "kubelet --max-pods per node. The default for t3a.medium is 17 (ENI/IP limited), which the monitoring + logging stacks exhaust. We enable VPC CNI prefix delegation (each ENI gets /28 prefixes = 16 IPs) and raise this ceiling so unused RAM can actually be scheduled. 110 is AWS's recommended cap for sub-30-vCPU instances; real packing is RAM-bound well below it. Set in dev.tfvars."
+  type        = number
+}

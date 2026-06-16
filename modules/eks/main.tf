@@ -7,8 +7,9 @@
 #   - the EBS CSI driver addon + its dedicated IRSA role (the only IRSA role in P4; it's tightly
 #     coupled to the addon — the in-cluster Postgres PVC in gitops P13/P14 needs this driver)
 #
-# Core addons (vpc-cni, coredns, kube-proxy) install automatically with the cluster, so they are
-# NOT declared here. The app IRSA roles (backend→Bedrock/S3, ESO→Secrets Manager) are P7, not here.
+# Core addons (coredns, kube-proxy) install automatically with the cluster, so they are NOT declared
+# here. vpc-cni IS declared (below) — we manage it explicitly to enable PREFIX DELEGATION. The app
+# IRSA roles (backend→Bedrock/S3, ESO→Secrets Manager) are P7, not here.
 
 data "aws_partition" "current" {}
 
@@ -79,13 +80,68 @@ resource "aws_eks_cluster" "this" {
   depends_on = [aws_iam_role_policy_attachment.cluster_AmazonEKSClusterPolicy]
 }
 
+# ---- VPC CNI addon: managed, with PREFIX DELEGATION --------------------------
+# vpc-cni auto-installs with the cluster, but we adopt it as a managed addon (OVERWRITE the
+# self-installed copy) so we can set ENABLE_PREFIX_DELEGATION. Default IP-per-pod allocation caps a
+# t3a.medium at 17 pods (ENI/IP limited); the monitoring + logging stacks exhaust that. Prefix
+# delegation hands each ENI a /28 prefix (16 IPs) instead of single IPs, lifting the pod ceiling far
+# above 17 on the SAME instance type + AMI. WARM_PREFIX_TARGET=1 keeps one spare prefix warm so pod
+# scheduling doesn't stall on a cold IP allocation. (Pairs with the raised --max-pods in the launch
+# template below; both are required — the CNI gives the IPs, the kubelet flag lets pods use them.)
+resource "aws_eks_addon" "vpc_cni" {
+  cluster_name = aws_eks_cluster.this.name
+  addon_name   = "vpc-cni"
+
+  # Adopt the cluster-installed CNI and apply our config over it (create + drift updates).
+  resolve_conflicts_on_create = "OVERWRITE"
+  resolve_conflicts_on_update = "OVERWRITE"
+
+  configuration_values = jsonencode({
+    env = {
+      ENABLE_PREFIX_DELEGATION = "true"
+      WARM_PREFIX_TARGET       = "1"
+    }
+  })
+}
+
+# ---- Launch template: raise kubelet --max-pods (AL2023 nodeadm) --------------
+# Prefix delegation supplies the IPs; the kubelet's --max-pods must also be raised or it still admits
+# only 17 pods. NO image_id is set, so EKS keeps managing the AL2023 EKS-optimized AMI for the cluster
+# version (no pinned/stale AMI). We inject ONLY a NodeConfig that sets maxPods; EKS merges it with its
+# own generated bootstrap (cluster name, endpoint, CA) via the AL2023 MIME/nodeadm mechanism.
+resource "aws_launch_template" "node" {
+  name_prefix = "${var.cluster_name}-ng-"
+
+  user_data = base64encode(<<-EOT
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="//"
+
+--//
+Content-Type: application/node.eks.aws
+
+apiVersion: node.eks.aws/v1alpha1
+kind: NodeConfig
+spec:
+  kubelet:
+    config:
+      maxPods: ${var.node_max_pods}
+--//--
+  EOT
+  )
+
+  tag_specifications {
+    resource_type = "instance"
+    tags          = { Name = "${var.cluster_name}-ng" }
+  }
+}
+
 # ---- Managed node group (t3a.medium, private subnets) ------------------------
 resource "aws_eks_node_group" "this" {
   cluster_name    = aws_eks_cluster.this.name
   node_group_name = "${var.cluster_name}-ng"
   node_role_arn   = aws_iam_role.node.arn
   subnet_ids      = var.subnet_ids
-  instance_types  = var.node_instance_types
+  instance_types  = var.node_instance_types # stays on the node group (the LT sets no instance type)
 
   scaling_config {
     desired_size = var.node_desired_size
@@ -93,11 +149,20 @@ resource "aws_eks_node_group" "this" {
     max_size     = var.node_max_size
   }
 
-  # Nodes can't register until their role has the worker/CNI/ECR policies attached.
+  # Use the launch template (for the raised --max-pods). Tracking latest_version means a user_data
+  # change rolls the node group to new nodes automatically.
+  launch_template {
+    id      = aws_launch_template.node.id
+    version = aws_launch_template.node.latest_version
+  }
+
+  # Nodes can't register until their role has the worker/CNI/ECR policies attached. They must also
+  # join AFTER the CNI is configured for prefix delegation, so fresh nodes get prefixes from the start.
   depends_on = [
     aws_iam_role_policy_attachment.node_AmazonEKSWorkerNodePolicy,
     aws_iam_role_policy_attachment.node_AmazonEKS_CNI_Policy,
     aws_iam_role_policy_attachment.node_AmazonEC2ContainerRegistryReadOnly,
+    aws_eks_addon.vpc_cni,
   ]
 }
 

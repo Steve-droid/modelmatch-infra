@@ -64,6 +64,11 @@ variable "node_max_size" {
   type        = number
 }
 
+variable "node_max_pods" {
+  description = "kubelet --max-pods per node (paired with VPC CNI prefix delegation; default 17 for t3a.medium is exhausted by monitoring + logging)."
+  type        = number
+}
+
 variable "endpoint_public_access" {
   description = "Whether the cluster API endpoint is reachable from the public internet (narrowed by public_access_cidrs)."
   type        = bool

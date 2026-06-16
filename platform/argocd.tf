@@ -44,9 +44,16 @@ locals {
     }
 
     controller = {
+      # The application-controller caches every resource of every managed Application in memory to
+      # compute diffs. Adding kube-prometheus-stack (operator + CRDs + ~28 PrometheusRules + ServiceMonitors)
+      # at P20 pushed its working set past the original 512Mi limit → OOMKilled (exit 137) crash-loop →
+      # it could never finish a sync pass, so the `monitoring` app stayed OutOfSync. Bumped the limit to
+      # 1.5Gi (headroom for the further P21–P23 observability objects) and the request to 512Mi (its real
+      # floor is north of 512Mi). We're RAM-headroomed (only ~3 of 7.5GiB cluster RAM in use), so this
+      # is the lean fix — raise the under-provisioned ceiling, not the node size.
       resources = {
-        requests = { cpu = "100m", memory = "256Mi" }
-        limits   = { cpu = "500m", memory = "512Mi" }
+        requests = { cpu = "100m", memory = "512Mi" }
+        limits   = { cpu = "500m", memory = "1.5Gi" }
       }
     }
     server = {
