@@ -21,6 +21,9 @@ node_instance_types = ["t3a.medium"]
 node_desired_size   = 2 # start 2
 node_min_size       = 2
 node_max_size       = 3 # cap at 3
+# kubelet --max-pods, paired with VPC CNI prefix delegation. Lifts the t3a.medium ENI/IP cap (17 pods)
+# that monitoring + logging exhaust; real packing stays RAM-bound well below this. AWS-recommended max.
+node_max_pods = 110
 
 # API endpoint: public + private, but the public surface is narrowed to approved source IPs.
 endpoint_public_access  = true
