@@ -18,8 +18,8 @@ cluster_name = "modelmatch"
 k8s_version  = "1.36" # latest in-support (STANDARD_SUPPORT) as of 2026-06-13; NOT extended support
 
 node_instance_types = ["t3a.medium"]
-node_desired_size   = 2 # start 2
-node_min_size       = 2
+node_desired_size   = 3 # scaled 2->3 at P23 (E13): Elasticsearch/Kibana (EFK logging) is heavy on t3a.medium
+node_min_size       = 3
 node_max_size       = 3 # cap at 3
 # kubelet --max-pods, paired with VPC CNI prefix delegation. Lifts the t3a.medium ENI/IP cap (17 pods)
 # that monitoring + logging exhaust; real packing stays RAM-bound well below this. AWS-recommended max.
