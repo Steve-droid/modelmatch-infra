@@ -83,9 +83,13 @@ data "aws_iam_policy_document" "jenkins_instance" {
     resources = ["*"]
   }
 
-  # 2b. ECR — push (and pull, for cache) scoped to the 3 ModelMatch repos.
+  # 2b. ECR — push (and pull, for cache) + describe scoped to the 3 ModelMatch repos.
+  # DescribeImages: the agent pipeline (Jenkinsfile.agent) reads a tag's remote digest back via
+  # `aws ecr describe-images` to verify the SAME image landed in ECR + Docker Hub (the cross-registry
+  # same-digest contract). The backend pipeline reads digests via `docker manifest inspect`, so it
+  # never needed this — only the agent's publish path does.
   statement {
-    sid    = "EcrPush"
+    sid    = "EcrPushAndDescribe"
     effect = "Allow"
     actions = [
       "ecr:BatchCheckLayerAvailability",
@@ -95,6 +99,7 @@ data "aws_iam_policy_document" "jenkins_instance" {
       "ecr:UploadLayerPart",
       "ecr:CompleteLayerUpload",
       "ecr:PutImage",
+      "ecr:DescribeImages",
     ]
     resources = local.ecr_repository_arns
   }
