@@ -1,75 +1,152 @@
 # modelmatch-infra
 
-> **ACTIVE** (since P1). Terraform foundation for ModelMatch's AWS infrastructure.
-> Part of the [ModelMatch portfolio build](../CLAUDE.md); spec in
-> [`../docs/planning/architecture.md`](../docs/planning/architecture.md) §12 and `../docs/instructions/lesson-03..04`.
-> Operator guidance: [`CLAUDE.md`](CLAUDE.md).
+> **ACTIVE** (since P1). Terraform foundation for ModelMatch's AWS infrastructure — region
+> **`ap-south-1`**, account **`832285994273`**. Part of the [ModelMatch portfolio build](../CLAUDE.md);
+> spec in [`../docs/planning/architecture.md`](../docs/planning/architecture.md) §12 and
+> `../docs/instructions/lesson-03..04`. Operator guidance: [`CLAUDE.md`](CLAUDE.md).
+
+## Table of Contents
+
+- [Overview](#overview)
+- [Three stacks, three lifecycles](#three-stacks-three-lifecycles)
+- [Technology Stack](#technology-stack)
+- [Repository Structure](#repository-structure)
+- [Prerequisites](#prerequisites)
+- [Usage — the daily cycle](#usage--the-daily-cycle)
+- [Teardown & orphan check](#teardown--orphan-check)
+- [State backend](#state-backend)
+- [Cost alerting (P2)](#cost-alerting-p2)
+- [Conventions](#conventions)
+- [Contact](#contact)
 
 ## Overview
 
-Terraform (own modules — **no third-party modules**) for ModelMatch's AWS infrastructure. Built
+Terraform (**own modules — no third-party/registry modules**) for ModelMatch's AWS infrastructure, built
 cost-aware from the start: lifecycle discipline (`apply` at day start / `destroy` at day end) and the
-orphan-resource ritual check are first-class.
+orphan-resource ritual are first-class.
 
-What it will provision (region **`ap-south-1`**):
+What it provisions (region **`ap-south-1`**):
 
-- **EKS** — latest in-support Kubernetes version (a stale version is a silent ×6 cluster charge).
-- **VPC** — private subnets + **exactly one NAT Gateway** in a single AZ (the SPOF tradeoff is named in
-  the HLD); **single ingress load balancer** (FE + BE behind one LB).
-- **ECR** — with a lifecycle policy (expire untagged, keep last N tagged).
-- **IAM + IRSA** — OIDC provider → role scoped to the Bedrock Nova model ARNs + the S3 bucket →
-  annotated onto the backend ServiceAccount (no static keys in the cluster).
-- **S3** — Terraform remote state + ingestion source-doc blobs.
+- **EKS** — latest in-support Kubernetes version (a stale version is a silent ~×6 control-plane charge);
+  managed node group of **3× `t3a.medium`** (scaled at P23 for the EFK stack), CNI **prefix delegation**
+  (110 pods/node), OIDC provider for IRSA.
+- **VPC** — public + private subnets across **2 AZs** with **exactly one NAT Gateway** (the named egress
+  SPOF — called out in the HLD); **single ingress load balancer** (FE + BE behind one LB, provisioned by
+  the in-cluster controller, not Terraform — see teardown).
+- **ECR** — two repos (backend, frontend) with a lifecycle policy (expire untagged, keep last N tagged).
+- **IAM + IRSA** — OIDC → **role A** (`modelmatch-backend-irsa`: Bedrock Nova ARNs + the S3 bucket) and
+  **role B** (`modelmatch-eso-irsa`: Secrets Manager for External Secrets Operator) → annotated onto the
+  respective ServiceAccounts. **No static keys in the cluster.**
+- **S3** — Terraform remote state + the ingestion source-doc bucket.
+- **Jenkins controller** — the graded persistent CI box (EC2 + EIP + SG + instance profile + EBS-backed
+  `JENKINS_HOME`), in its own root stack so the daily `destroy` can never take out CI.
 
-> **No managed database.** Per the build module the **database is in-cluster** (a Helm subchart on a
-> PVC — see [`modelmatch-gitops`](../modelmatch-gitops)). This repo provisions **no RDS**.
+> **No managed database (no RDS).** Per the build module the **database is in-cluster** (a CNPG cluster on
+> an EBS-CSI PVC — see [`modelmatch-gitops`](../modelmatch-gitops)). This repo provisions **no RDS**.
+
+## Three stacks, three lifecycles
+
+So the daily `destroy` can never nuke state, images, the budget, **or the CI controller**, Terraform is
+split into **three root stacks with separate state**:
+
+```
+modelmatch-infra/
+├── bootstrap/   # PERSISTENT — applied once, NEVER in the daily destroy
+│   └── S3 state bucket + lock (P1) · AWS Budget+SNS (P2) · ECR repos (P5) · S3 ingestion bucket (P6)
+├── platform/    # EPHEMERAL — `apply` at day start / `destroy` at day end   ← the ONLY stack destroyed daily
+│   └── VPC + 1×NAT (P3) · EKS+OIDC+nodes (P4) · IRSA roles A/B (P7) · ArgoCD bootstrap + app namespace (P9/P10)
+├── jenkins/     # PERSISTENT — graded CI controller; survives every platform destroy (P16)
+│   └── Jenkins EC2 + EIP + SG + IAM instance profile + persistent EBS (/var/lib/jenkins) + backup bucket
+└── modules/     # our OWN reusable modules: vpc · eks · ecr · iam-irsa · jenkins-controller
+```
+
+- `bootstrap/` outputs (state-bucket ARN, ECR URLs, ingestion-bucket ARN) are read by `platform/` via
+  `terraform_remote_state` — never duplicated.
+- Each stack has its own `versions.tf` · `providers.tf` · `backend.tf` (+ `variables.tf` / `main.tf` /
+  `outputs.tf`). Same S3 bucket, **different state key** per stack.
+- **`bootstrap/` and `jenkins/` are persistent** and never in the daily ritual; `jenkins/` is a *separate*
+  root because it has its own operational surface (EC2, plugins, jobs, an attached disk) and lifecycle —
+  destroyed only intentionally.
 
 ## Technology Stack
 
 | Category           | Technologies   |
 | ------------------ | -------------- |
-| **Infrastructure** | AWS (EKS, VPC, NAT, ECR, IAM/IRSA, S3) |
-| **IaC**            | Terraform — own modules; S3 remote state backend |
-| **Region**         | `ap-south-1` (Mumbai) |
+| **Infrastructure** | AWS — EKS · VPC · NAT · ECR · IAM/IRSA · S3 · EC2 (Jenkins) |
+| **IaC**            | Terraform 1.15.x — own modules only; S3 remote state, S3-native locking (no DynamoDB) |
+| **Region / Acct**  | `ap-south-1` (Mumbai) · `832285994273` |
 
 ## Repository Structure
 
-Two root stacks with separate state and separate lifecycles (so the daily `destroy` can't nuke state,
-images, or the budget), plus a shared dir for our own modules:
-
 ```
 modelmatch-infra/
-├── bootstrap/      # PERSISTENT — applied once, never in the daily destroy
-│   │               #   S3 state bucket + lock (P1) · Budget+SNS (P2) · ECR (P5) · ingestion bucket (P6)
-│   ├── versions.tf · providers.tf · backend.tf · variables.tf · main.tf · outputs.tf
-├── platform/       # EPHEMERAL — apply at day start / destroy at day end
-│   │               #   VPC+1×NAT (P3) · EKS+OIDC (P4) · IRSA (P7)  ← the only stack destroyed daily
-│   ├── versions.tf · providers.tf · backend.tf · variables.tf
-├── modules/        # our OWN modules only (vpc, eks, ecr, iam-irsa, …) — populated from P3
-├── .gitignore  ·  README.md  ·  CLAUDE.md
+├── bootstrap/   backend.tf · budget.tf · ecr.tf · ingestion.tf · sns.tf · main.tf · variables.tf · dev.tfvars · …
+├── platform/    backend.tf · vpc.tf · eks.tf · irsa.tf · argocd.tf · namespaces.tf · variables.tf · dev.tfvars · …
+├── jenkins/     backend.tf · main.tf · iam.tf · variables.tf · dev.tfvars · outputs.tf · …
+├── modules/     vpc · eks · ecr · iam-irsa · jenkins-controller   (our own only)
+├── docs/        diagrams (E10 infra foundation)
+├── README.md · CLAUDE.md · .gitignore
 ```
 
-Both stacks use the same S3 state bucket with different keys; `platform/` reads `bootstrap/` outputs via
-`terraform_remote_state`.
+## Prerequisites
 
-## Usage
+- Terraform ≥ 1.10 (we run 1.15.x — required for S3-native locking).
+- AWS credentials on the **default credential chain** (`default` profile / env vars) — no `profile` is
+  hardcoded in HCL, and no static keys are committed.
+- Authority in account `832285994273`, region `ap-south-1`.
+
+## Usage — the daily cycle
+
+**Every command passes the var-file explicitly** (`-var-file=dev.tfvars`) — `variables.tf` is defaultless
+and nothing is auto-loaded (see [Conventions](#conventions)).
 
 ```bash
 # bootstrap (persistent) — applied once; rarely re-run
-cd bootstrap && terraform init && terraform apply
+terraform -chdir=bootstrap init
+terraform -chdir=bootstrap apply -var-file=dev.tfvars
 
-# platform (ephemeral) — the daily cycle
-cd platform  && terraform init && terraform apply     # day start
-cd platform  && terraform destroy                     # day end, then run the orphan check
+# jenkins (persistent) — applied once; the CI controller box
+terraform -chdir=jenkins init
+terraform -chdir=jenkins apply -var-file=dev.tfvars
+
+# platform (ephemeral) — the DAILY cycle
+terraform -chdir=platform init
+terraform -chdir=platform apply   -var-file=dev.tfvars   # day start
+terraform -chdir=platform destroy -var-file=dev.tfvars   # day end → then run the orphan check
 ```
 
-Auth uses the default AWS credential chain (the `default` profile / env vars) — no `profile` is
-hardcoded in HCL, and no static keys are committed.
+> Only **`platform/`** is in the daily apply→destroy ritual. `bootstrap/` and `jenkins/` persist.
+
+## Teardown & orphan check
+
+After **every** `platform/` destroy, verify **zero** stray resources (tags make them findable —
+`stack=platform`):
+
+- **Stray ELB** — the **single ingress LB is created by the in-cluster cloud-controller-manager, not
+  Terraform.** Before `terraform destroy`, delete the `nginx-ingress` ArgoCD app/Service first so the CCM
+  releases the LB (else it orphans). cert-manager/ESO create none — keep it to **one** LB.
+- **Unattached EBS volumes** — the CNPG Postgres PVC is EBS-CSI-backed (`reclaimPolicy: Delete`); delete
+  the `modelmatch-postgres` ArgoCD app **before** `terraform destroy` so the CSI driver removes its EBS
+  volumes. A retained/forgotten volume is a cost orphan.
+- **Unattached EIPs** — an EIP *attached* to the Jenkins box is **fine** (persistent); only **unattached**
+  EIPs are orphans.
+- **Stray NAT Gateways** — there should be exactly one while `platform/` is up, and zero after destroy.
+
+> `terraform destroy` on `platform/` has been run as a full apply→destroy cycle (it actually works). Every
+> wait/poll in teardown scripts is time-capped — surface "stuck", never hang silently.
+
+## State backend
+
+- **S3 remote state**, bucket `modelmatch-tfstate-832285994273` (account-id suffix = globally unique).
+  Versioned, AES256-encrypted, all public access blocked, `prevent_destroy` on the bucket.
+- **S3-native locking** (`use_lockfile = true`, Terraform ≥ 1.10) — **no DynamoDB lock table**. Backend
+  blocks can't take variables, so bucket/key/region are literals kept in sync across the `backend.tf`
+  files.
 
 ## Cost alerting (P2)
 
-The financial ground-truth backstop, created **early** (before the first EKS apply) and in the
-**persistent `bootstrap/` stack** so it survives the daily `platform/` destroy.
+The financial ground-truth backstop, created **early** (before the first EKS apply) in the persistent
+`bootstrap/` stack so it survives the daily `platform/` destroy.
 
 ```
   aws_budgets_budget (modelmatch-monthly-cost, $25/mo, COST)
@@ -78,67 +155,41 @@ The financial ground-truth backstop, created **early** (before the first EKS app
         ▼                                               ▼
   subscriber_email_addresses              subscriber_sns_topic_arns
   → stevelevit230@gmail.com               → aws_sns_topic modelmatch-budget-alerts ⚠ us-east-1
-    (RELIABLE channel)                       (+ topic policy: allow budgets.amazonaws.com
-                                              to SNS:Publish, scoped to our account)
-                                             → email subscription (pattern + future fan-out)
+    (RELIABLE channel)                       (topic policy: allow budgets.amazonaws.com to Publish)
 ```
 
-**Two delivery channels, on purpose:**
-
-- **Budget-native email** (`subscriber_email_addresses`) is the **reliable** channel. These mails come
-  straight from AWS Budgets and carry **no unsubscribe link**, so Gmail's link-prefetch (security
-  scanning of incoming mail) can't silently deactivate them.
-- **SNS topic** (`subscriber_sns_topic_arns`) is kept for the topic/subscription pattern and future
-  programmatic fan-out (Slack/Lambda) — **not** relied on for email. SNS *raw email* subscriptions are
-  fragile with Gmail: the unsubscribe link in every SNS notification gets prefetched on receipt and
-  auto-deactivates the subscription. (Known failure mode; documented here so we don't relearn it.)
-
-**Why us-east-1:** AWS Budgets is a *global* service whose backend runs in us-east-1, and a budget can
-only notify an SNS topic that also lives in us-east-1. The budget itself is managed through the default
-`ap-south-1` provider (Budgets is global); only the topic needs the `aws.us_east_1` alias.
-
-**Scope:** covers AWS-side spend (EKS control plane + NAT + EBS + data transfer). Anthropic app-API
-spend is tracked separately on the Anthropic console — *not* here. Per lesson-04, cost stays out of
-Prometheus; this Budget + Cost Explorer is the financial signal, token metrics are the operational one.
-
-**Verifying the alert path (the budget-native channel is the one that matters):**
-
-AWS Budgets has no "send test notification" button — a real email only fires when AWS evaluates
-month-to-date spend against the threshold (a few times a day). To prove it end-to-end without waiting
-for a real overrun, temporarily lower the limit below current MTD spend so the threshold trips, then
-restore it (keep the real limit out of the change by using a `-var` override):
-
-```bash
-aws ce get-cost-and-usage --region us-east-1 \
-  --time-period Start=$(date +%Y-%m-01),End=$(date +%Y-%m-%d) \
-  --granularity MONTHLY --metrics UnblendedCost \
-  --query 'ResultsByTime[0].Total.UnblendedCost'          # current month-to-date spend
-
-terraform apply -var="budget_limit_amount=1"   # 80% = $0.80 < MTD spend → trips on next eval
-#   … wait for the budget email (from budgets@costalerts.amazonaws.com), then:
-terraform apply                                 # restore to the committed $25 limit
-```
+- **Budget-native email** is the **reliable** channel (no unsubscribe link → Gmail link-prefetch can't
+  silently deactivate it).
+- **SNS** is kept for the topic/subscription pattern + future fan-out (Slack/Lambda), **not** relied on
+  for email (SNS raw-email subscriptions are fragile with Gmail's link prefetch).
+- **Why us-east-1:** AWS Budgets is a global service whose backend runs in us-east-1, and a budget can only
+  notify an SNS topic that also lives there (only the topic needs the `aws.us_east_1` alias).
+- **Scope:** AWS-side spend (EKS control plane + NAT + EBS + transfer). Anthropic app-API spend is tracked
+  separately on the Anthropic console. Per lesson-04, **cost stays out of Prometheus** — this Budget +
+  Cost Explorer is the financial signal; token metrics are the operational one.
 
 > **Verification performed 2026-06-10:** limit temporarily dropped to `$1` via `-var` against a
 > month-to-date spend of `$1.55`. Both notifications fired as real budget-native emails from
-> `budgets@costalerts.amazonaws.com`, delivered to the subscriber's **inbox** (not spam):
-> **ACTUAL** `$1.55 > $0.80` (80% of $1) and **FORECASTED** `$4.82 > $1.00` (100% of $1).
-> Limit restored to `$25`; final `terraform plan` = no changes. The SNS email subscription was
-> separately confirmed active (`PendingConfirmation: false`).
+> `budgets@costalerts.amazonaws.com`, delivered to the **inbox**: **ACTUAL** `$1.55 > $0.80` and
+> **FORECASTED** `$4.82 > $1.00`. Limit restored to `$25`; final `terraform plan` = no changes.
 
 ## Conventions
 
-- **Providers yes, third-party modules no** (hard rule): official providers like `hashicorp/aws` are
-  required, but **every module must be ours** (`source = "../modules/…"`). No registry/Git modules —
-  see [`CLAUDE.md`](CLAUDE.md).
-- **S3 remote state** with S3-native locking (`use_lockfile`, Terraform ≥ 1.10 — no DynamoDB).
-- No hardcoded secrets / no static keys; least-privilege IRSA; **tag every resource** via `default_tags`
-  (`owner` / `project` / `environment` / `stack`).
-- Jenkins is **not** in Terraform (pre-provisioned, different lifecycle — keeps `destroy` safe).
-- `terraform apply` (platform) at day start, **`terraform destroy` (platform) at day end**, then the
-  orphan check (no stray ELB / unattached EBS / unattached EIP / NAT). An AWS Budget is wired to an alert (P2).
-- Branching: `feature/<story-id>-<desc>` → PR → `main` (protected).
+- **Providers YES, third-party modules NO** (hard rule): official providers like `hashicorp/aws` are
+  required, but **every module must be ours** (`source = "../modules/…"`). No registry/Git modules.
+- **Defaultless `variables.tf` + explicit `-var-file=dev.tfvars`** (hard rule): variables declare inputs
+  only (no defaults); concrete **non-secret** values live in a committed `dev.tfvars` per stack, passed
+  explicitly on every command — **never** rely on auto-loaded `terraform.tfvars`/`*.auto.tfvars`. Secrets
+  never go in tfvars (they reach the cluster via Secrets Manager + ESO/IRSA).
+- **No hardcoded secrets / no static AWS keys**; least-privilege IRSA; **tag every resource** via
+  `default_tags` (`owner` / `project` / `environment` / `stack`).
+- **EKS** pinned to a current in-support version; **exactly 1 NAT GW** (single AZ, named SPOF); **ECR
+  lifecycle policy** in place.
+- `apply` (platform) at day start, **`destroy` (platform) at day end**, then the orphan check. An AWS
+  Budget is wired to an alert (P2).
+- Branching: `feature/<story-id>-<desc>` → PR (self-review) → `main`. Conventional Commits; SemVer tags.
 
 ## Contact
 
 Steve Levit — stevelevit230@gmail.com
+</content>
