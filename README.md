@@ -132,8 +132,56 @@ After **every** `platform/` destroy, verify **zero** stray resources (tags make 
   EIPs are orphans.
 - **Stray NAT Gateways** — there should be exactly one while `platform/` is up, and zero after destroy.
 
-> `terraform destroy` on `platform/` has been run as a full apply→destroy cycle (it actually works). Every
-> wait/poll in teardown scripts is time-capped — surface "stuck", never hang silently.
+> Every wait/poll in teardown is **time-capped** — surface "stuck", never hang silently. `terraform
+> destroy` on `platform/` has been run end-to-end many times (it works); the wrinkles below are
+> **expected, not failures** — the Helm-stall + `state rm` step applies to *every* destroy.
+
+### Graceful pre-destroy (nodes up — the normal end-of-day case)
+
+With the cluster healthy, let the **in-cluster controllers** delete the AWS resources *they* created (the
+ingress ELB **+ its SG**, the CSI EBS volumes) so nothing orphans — then destroy. Verified 2026-06-18.
+
+1. **Disable root auto-sync** so deleting child apps doesn't trigger a re-sync:
+   `kubectl -n argocd patch app root --type merge -p '{"spec":{"syncPolicy":{"automated":null}}}'`
+2. **Delete the stateful + ingress apps** so CSI/CCM release their AWS resources:
+   `kubectl -n argocd delete app modelmatch-postgres nginx-ingress` (plus `kubectl -n app delete pvc --all`
+   as belt-and-suspenders — `reclaimPolicy: Delete` → CSI removes the EBS). **Bounded-poll** until the ELB,
+   its `k8s-elb-<hash>` SG, **and** the Postgres EBS volumes are all gone in AWS. (CCM removes the SG for
+   you here — *unlike* the nodes=0 case below.)
+3. `terraform -chdir=platform destroy -var-file=dev.tfvars -auto-approve` → then the Helm-stall step.
+
+### The Helm-uninstall stall + `state rm` (BOTH cases — expect it)
+
+`terraform destroy` **stalls ~5 min on `helm_release.argocd_apps` / `argocd`** and exits
+`uninstallation … context deadline exceeded` (rc=1 — masked to 0 if a trailing `echo` follows in a wrapper,
+so grep the log, not the harness rc). This is **not** nodes-specific: uninstalling the app-of-apps
+cascade-deletes the whole ArgoCD app tree (cert-manager, monitoring, ECK Elasticsearch with slow
+finalizers, …), which exceeds Helm's 5-min timeout **even with nodes up**. Terraform halts with the EKS
+cluster + private subnets + VPC still in state. Fix:
+
+1. **`terraform state rm`** the in-cluster-only resources — `helm_release.argocd`, `helm_release.argocd_apps`,
+   and every `kubernetes_namespace.this[…]` (`app`/`argocd`/`logging`/`monitoring`). They die with the
+   cluster; removing them strands **no** AWS resources.
+2. **Re-run the destroy** → `Destroy complete!` (cluster ~8–10 min → private subnets → VPC).
+
+### Differences when the 1AM cost Lambda already scaled nodes to 0
+
+The Lambda scales the nodegroup to `desired=0`, **killing CCM/CSI/ArgoCD with the nodes** — so the graceful
+pre-destroy can't run. Instead:
+
+- **Manually delete the ingress ELB** (`aws elb delete-load-balancer`; find by tag
+  `kubernetes.io/service-name=nginx-ingress/...`), bounded-poll until its ENIs clear.
+- Do the `state rm` + re-destroy. The **VPC then stalls** because the ELB's leftover `k8s-elb-<hash>` SG was
+  never removed (no CCM) → **`aws ec2 delete-security-group`** it → the next ~10 s retry finishes.
+- **Manually delete the 2 detached Postgres EBS volumes** (`available`, not in TF state).
+
+Then run the orphan check; confirm `bootstrap/` + `jenkins/` survived. (After a full teardown the
+in-cluster Postgres DB is gone — `reclaimPolicy: Delete` — so re-seed on the next bring-up.)
+
+> **Note on time limits:** Terraform's *own* per-resource destroy retry (the `Still destroying … NNm
+> elapsed` line on `aws_vpc`) has **no client-side cap** — it loops on a dependency violation for many
+> minutes. The fix is never a longer timeout; it's to inspect the VPC's remaining SGs/ENIs and clear the
+> blocker (step 4), so the next retry succeeds.
 
 ## State backend
 
