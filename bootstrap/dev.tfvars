@@ -10,7 +10,7 @@ aws_region = "ap-south-1"
 state_bucket_name = "modelmatch-tfstate-832285994273"
 
 # --- Budget + alerting (P2) ---
-budget_limit_amount = "25"                      # USD/month, alert threshold only (Budgets never caps spend)
+budget_limit_amount = "50"                      # USD/month, alert threshold only (Budgets never caps spend)
 alert_email         = "stevelevit230@gmail.com" # config, not a secret
 
 # --- ECR repos adopted into TF (P5) — hold the live :1.0.0 images ---
