@@ -28,7 +28,7 @@ node_max_pods = 110
 # API endpoint: public + private, but the public surface is narrowed to approved source IPs.
 endpoint_public_access  = true
 endpoint_private_access = true
-public_access_cidrs     = ["5.29.38.37/32"] # Steve's laptop public IP — update if it changes
+public_access_cidrs     = ["87.71.200.38/32"] # Steve's laptop public IP — update if it changes
 
 # --- IRSA (P7) ---
 # Bedrock Nova surfaces the backend invokes (verified live in ap-south-1, 2026-06-13):
