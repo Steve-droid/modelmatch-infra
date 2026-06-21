@@ -46,9 +46,10 @@ jenkins_plugins = [
 # The laptop IP rotates (residential) — list approved source IPs here; prune stale entries.
 # 8080 also opens to GitHub's published hook ranges for webhook delivery.
 admin_cidrs = [
-  "77.137.3.3/32",    # current
+  "77.137.3.3/32",
   "46.210.249.36/32",
   "87.71.200.38/32",
+  "5.29.38.37/32",    # current
 ]
 
 webhook_ingress_cidrs = [
