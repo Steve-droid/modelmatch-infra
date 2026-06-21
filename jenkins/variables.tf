@@ -71,9 +71,9 @@ variable "jenkins_plugins" {
 }
 
 # --- Network access ---------------------------------------------------------------
-variable "admin_cidr" {
-  description = "Source CIDR for SSH (22) + Jenkins UI (8080) — Steve's laptop /32."
-  type        = string
+variable "admin_cidrs" {
+  description = "Source CIDRs for SSH (22) + Jenkins UI (8080) — Steve's laptop /32(s); list as the IP rotates."
+  type        = list(string)
 }
 
 variable "webhook_ingress_cidrs" {

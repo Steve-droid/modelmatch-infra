@@ -22,7 +22,7 @@ module "jenkins" {
   jenkins_home_mount       = var.jenkins_home_mount
   jenkins_plugins          = var.jenkins_plugins
 
-  admin_cidr                 = var.admin_cidr
+  admin_cidrs                = var.admin_cidrs
   webhook_ingress_cidrs      = var.webhook_ingress_cidrs
   webhook_ingress_ipv6_cidrs = var.webhook_ingress_ipv6_cidrs
 
