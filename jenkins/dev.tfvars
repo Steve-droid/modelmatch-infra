@@ -42,9 +42,14 @@ jenkins_plugins = [
 ]
 
 # --- Network access ---
-# admin_cidr = Steve's laptop /32 (same value platform/ uses for the EKS public endpoint). Update if
-# the laptop IP changes. 8080 also opens to GitHub's published hook ranges for webhook delivery.
-admin_cidr = "87.71.200.38/32"
+# admin_cidrs = Steve's laptop /32(s); keep in sync with platform/ public_access_cidrs (EKS endpoint).
+# The laptop IP rotates (residential) — list approved source IPs here; prune stale entries.
+# 8080 also opens to GitHub's published hook ranges for webhook delivery.
+admin_cidrs = [
+  "77.137.3.3/32",    # current
+  "46.210.249.36/32",
+  "87.71.200.38/32",
+]
 
 webhook_ingress_cidrs = [
   "192.30.252.0/22",

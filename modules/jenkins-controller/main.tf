@@ -21,7 +21,7 @@ resource "aws_security_group" "this" {
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
-    cidr_blocks = [var.admin_cidr]
+    cidr_blocks = var.admin_cidrs
   }
 
   ingress {
@@ -29,7 +29,7 @@ resource "aws_security_group" "this" {
     from_port        = 8080
     to_port          = 8080
     protocol         = "tcp"
-    cidr_blocks      = concat([var.admin_cidr], var.webhook_ingress_cidrs)
+    cidr_blocks      = concat(var.admin_cidrs, var.webhook_ingress_cidrs)
     ipv6_cidr_blocks = var.webhook_ingress_ipv6_cidrs
   }
 
