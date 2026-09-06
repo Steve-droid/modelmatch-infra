@@ -56,5 +56,5 @@ resource "aws_sns_topic_policy" "budget_alerts" {
   policy   = data.aws_iam_policy_document.budget_alerts_topic.json
 }
 
-# Account id for the topic-policy SourceAccount condition (avoids hardcoding 832285994273).
+# Account id for the topic-policy SourceAccount condition (avoids hardcoding the account id).
 data "aws_caller_identity" "current" {}

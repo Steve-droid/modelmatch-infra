@@ -1,7 +1,7 @@
 # CLAUDE.md — modelmatch-infra
 
 **Status: ACTIVE** (activated P1, 2026-06-10). Terraform for ModelMatch's AWS infrastructure.
-Region **`ap-south-1`**, account **`832285994273`**.
+Region **`ap-south-1`**, account **`957261948820`**.
 
 > Part of the [ModelMatch portfolio build](../CLAUDE.md). Spec: `../docs/planning/architecture.md` §12,
 > the locked DevOps backlog `../docs/planning/01-devops-backlog.md` (Epic **E10**), and
@@ -36,7 +36,7 @@ modelmatch-infra/
 
 ## State backend
 
-- **S3 remote state**, bucket `modelmatch-tfstate-832285994273` (account-id suffix = globally unique).
+- **S3 remote state**, bucket `modelmatch-tfstate-957261948820` (account-id suffix = globally unique).
   Versioned, AES256-encrypted, all public access blocked, `prevent_destroy` on the bucket.
 - **Locking is S3-native** (`use_lockfile = true`, needs Terraform **≥ 1.10** — we run 1.15.5).
   **No DynamoDB lock table.** Backend blocks can't take variables, so bucket/key/region are literals

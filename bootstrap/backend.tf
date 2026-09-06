@@ -6,7 +6,7 @@
 # variables.tf / the platform backend). use_lockfile = true is S3-native locking (no DynamoDB).
 terraform {
   backend "s3" {
-    bucket       = "modelmatch-tfstate-832285994273"
+    bucket       = "modelmatch-tfstate-957261948820"
     key          = "bootstrap/terraform.tfstate"
     region       = "ap-south-1"
     encrypt      = true
