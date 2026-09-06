@@ -88,10 +88,6 @@ resource "aws_ebs_volume" "jenkins_home" {
   encrypted         = true
 
   tags = { Name = "${var.name}-home" }
-
-  lifecycle {
-    prevent_destroy = true
-  }
 }
 
 # ---- The controller instance -------------------------------------------------
