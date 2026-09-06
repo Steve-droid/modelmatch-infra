@@ -10,7 +10,7 @@ aws_region = "ap-south-1"
 state_bucket_name = "modelmatch-tfstate-957261948820"
 
 # --- Budget + alerting (P2) ---
-budget_limit_amount = "110"                     # USD/month, alert threshold only (Budgets never caps spend)
+budget_limit_amount = "110"                     # USD/month GROSS (credits not netted out); alerts only — Budgets never caps spend. 80%/90% ACTUAL + 100% FORECASTED
 alert_email         = "stevelevit230@gmail.com" # config, not a secret
 
 # --- ECR repos (P5 adopted in the old account; P32 creates them fresh in 957261948820) ---
