@@ -2,10 +2,9 @@
 # PERSISTENT bootstrap stack, never the daily destroy — the :1.0.0 images are the demo
 # artifacts and must survive every platform teardown.
 #
-# The repos already existed before Terraform (created during the smoke build), so P5 adopted
-# them via `terraform import` rather than creating them; the module settings are matched to the
-# live repos so that import was a no-op on the repositories themselves (only the lifecycle
-# policies were added).
+# History: in the bootcamp account the repos predated Terraform, so P5 adopted them via
+# `terraform import`. In the Phase 2 account (957261948820, P32, 2026-09-06) nothing pre-exists,
+# so this same module CREATES them; the repos start empty and P33 pushes the images.
 
 module "ecr" {
   source = "../modules/ecr"

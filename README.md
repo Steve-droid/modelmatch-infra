@@ -1,7 +1,7 @@
 # modelmatch-infra
 
 > **ACTIVE** (since P1). Terraform foundation for ModelMatch's AWS infrastructure — region
-> **`ap-south-1`**, account **`832285994273`**. Part of the [ModelMatch portfolio build](../CLAUDE.md);
+> **`ap-south-1`**, account **`957261948820`**. Part of the [ModelMatch portfolio build](../CLAUDE.md);
 > spec in [`../docs/planning/architecture.md`](../docs/planning/architecture.md) §12 and
 > `../docs/instructions/lesson-03..04`. Operator guidance: [`CLAUDE.md`](CLAUDE.md).
 
@@ -74,7 +74,7 @@ modelmatch-infra/
 | ------------------ | -------------- |
 | **Infrastructure** | AWS — EKS · VPC · NAT · ECR · IAM/IRSA · S3 · EC2 (Jenkins) |
 | **IaC**            | Terraform 1.15.x — own modules only; S3 remote state, S3-native locking (no DynamoDB) |
-| **Region / Acct**  | `ap-south-1` (Mumbai) · `832285994273` |
+| **Region / Acct**  | `ap-south-1` (Mumbai) · `957261948820` |
 
 ## Repository Structure
 
@@ -93,7 +93,7 @@ modelmatch-infra/
 - Terraform ≥ 1.10 (we run 1.15.x — required for S3-native locking).
 - AWS credentials on the **default credential chain** (`default` profile / env vars) — no `profile` is
   hardcoded in HCL, and no static keys are committed.
-- Authority in account `832285994273`, region `ap-south-1`.
+- Authority in account `957261948820`, region `ap-south-1`.
 
 ## Usage — the daily cycle
 
@@ -185,7 +185,7 @@ in-cluster Postgres DB is gone — `reclaimPolicy: Delete` — so re-seed on the
 
 ## State backend
 
-- **S3 remote state**, bucket `modelmatch-tfstate-832285994273` (account-id suffix = globally unique).
+- **S3 remote state**, bucket `modelmatch-tfstate-957261948820` (account-id suffix = globally unique).
   Versioned, AES256-encrypted, all public access blocked, `prevent_destroy` on the bucket.
 - **S3-native locking** (`use_lockfile = true`, Terraform ≥ 1.10) — **no DynamoDB lock table**. Backend
   blocks can't take variables, so bucket/key/region are literals kept in sync across the `backend.tf`

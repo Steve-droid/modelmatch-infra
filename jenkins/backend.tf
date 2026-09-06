@@ -4,7 +4,7 @@
 # the other two backend.tf files by hand (see modelmatch-infra/CLAUDE.md).
 terraform {
   backend "s3" {
-    bucket       = "modelmatch-tfstate-832285994273"
+    bucket       = "modelmatch-tfstate-957261948820"
     key          = "jenkins/terraform.tfstate"
     region       = "ap-south-1"
     encrypt      = true

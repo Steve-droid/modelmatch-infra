@@ -19,7 +19,7 @@ data "aws_partition" "current" {}
 data "terraform_remote_state" "bootstrap" {
   backend = "s3"
   config = {
-    bucket = "modelmatch-tfstate-832285994273"
+    bucket = "modelmatch-tfstate-957261948820"
     key    = "bootstrap/terraform.tfstate"
     region = "ap-south-1"
   }

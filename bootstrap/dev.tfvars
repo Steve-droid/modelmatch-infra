@@ -7,14 +7,16 @@
 aws_region = "ap-south-1"
 
 # --- State backend (P1) ---
-state_bucket_name = "modelmatch-tfstate-832285994273"
+state_bucket_name = "modelmatch-tfstate-957261948820"
 
 # --- Budget + alerting (P2) ---
-budget_limit_amount = "50"                      # USD/month, alert threshold only (Budgets never caps spend)
+budget_limit_amount = "110"                     # USD/month, alert threshold only (Budgets never caps spend)
 alert_email         = "stevelevit230@gmail.com" # config, not a secret
 
-# --- ECR repos adopted into TF (P5) — hold the live :1.0.0 images ---
+# --- ECR repos (P5 adopted in the old account; P32 creates them fresh in 957261948820) ---
 ecr_repository_names = ["modelmatch-backend", "modelmatch-frontend", "modelmatch-agent"]
 
-# --- Ingestion source bucket (P6) — APP CONTRACT (matches modelmatch-backend app/config.py) ---
-ingestion_bucket_name = "modelmatch-ingestion-sources"
+# --- Ingestion source bucket (P6) — APP CONTRACT: the backend reads it from S3_BUCKET (gitops values).
+# Renamed with the account suffix at P32 (2026-09-06): the bare name was still held by the closed
+# bootcamp account (AWS keeps a closed account's resources ~90 days) → BucketAlreadyExists. ---
+ingestion_bucket_name = "modelmatch-ingestion-sources-957261948820"
