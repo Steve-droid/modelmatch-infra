@@ -1,7 +1,8 @@
 # Our own VPC module: a VPC across var.az_count AZs with one public + one private subnet per AZ,
-# an IGW, EXACTLY ONE NAT gateway (the deliberate, HLD-documented egress SPOF — a 2nd NAT would
-# ~double egress cost for no portfolio benefit), one shared private route table -> the single NAT,
-# and a free S3 gateway endpoint that keeps S3 / ECR-layer / TF-state egress off the metered NAT.
+# an IGW, ONE NAT gateway PER AZ (P37, 2026-09-07 — replaced the single-NAT egress SPOF so an AZ loss
+# leaves the surviving AZ's private egress intact), one private route table per AZ whose default
+# route points at its OWN AZ's NAT, and a free S3 gateway endpoint that keeps S3 / ECR-layer /
+# TF-state egress off the metered NATs.
 #
 # AZs are discovered (data source), never hardcoded ap-south-1a/b. CIDRs are carved from var.vpc_cidr
 # with cidrsubnet() so there are no magic subnet numbers. default_tags (stack = platform) stamp the
@@ -70,28 +71,48 @@ resource "aws_subnet" "private" {
   )
 }
 
-# ---- Single NAT gateway (the egress SPOF) ------------------------------------
-# One EIP + one NAT in the first public subnet. All private egress funnels through this one NAT;
-# if its AZ fails, private-subnet egress (Bedrock calls, image pulls) stops. Deliberate cost call.
+# ---- NAT gateways: one per AZ ------------------------------------------------
+# One EIP + one NAT in EACH public subnet (index i = AZ i). Private egress from AZ i (Bedrock calls,
+# image pulls, package fetches) leaves through NAT i, so losing one AZ — the P40 failover drill —
+# does not take down the other AZ's egress. Cost: ~$0.045/h + $0.045/GB per NAT; the 2nd NAT is
+# the price of removing the "egress SPOF" that the HLD listed as a limitation until P37.
 
 resource "aws_eip" "nat" {
+  count = var.az_count
+
   domain = "vpc"
 
   tags = {
-    Name = "${var.name_prefix}-nat-eip"
+    Name = "${var.name_prefix}-nat-eip-${local.azs[count.index]}"
   }
 }
 
 resource "aws_nat_gateway" "this" {
-  allocation_id = aws_eip.nat.id
-  subnet_id     = aws_subnet.public[0].id
+  count = var.az_count
+
+  allocation_id = aws_eip.nat[count.index].id
+  subnet_id     = aws_subnet.public[count.index].id
 
   tags = {
-    Name = "${var.name_prefix}-nat"
+    Name = "${var.name_prefix}-nat-${local.azs[count.index]}"
   }
 
   # A NAT needs the IGW reachable before it can route; make the ordering explicit.
   depends_on = [aws_internet_gateway.this]
+}
+
+# P37 refactor: the original single EIP/NAT (no count) became element [0] of the per-AZ sets.
+# `moved` makes Terraform follow the rename in state instead of destroying and recreating the
+# AZ-a NAT (which would drop AZ-a egress for minutes and burn a new EIP). Declarative, reviewed in
+# the PR, and replayed on any future rebuild — unlike a one-off `terraform state mv`.
+moved {
+  from = aws_eip.nat
+  to   = aws_eip.nat[0]
+}
+
+moved {
+  from = aws_nat_gateway.this
+  to   = aws_nat_gateway.this[0]
 }
 
 # ---- Public routing: subnets -> IGW ------------------------------------------
@@ -117,10 +138,10 @@ resource "aws_route_table_association" "public" {
   route_table_id = aws_route_table.public.id
 }
 
-# ---- Private routing: one route table PER private subnet (per AZ) -> the single NAT ----
-# One private RT per AZ even though there's a single NAT today (Steve's call). Route tables are free,
-# and this is the forward-compatible layout: if we ever move to per-AZ NATs for HA, each AZ's RT just
-# repoints to its local NAT with no restructuring. Today every per-AZ RT points at the one NAT.
+# ---- Private routing: one route table PER private subnet (per AZ) -> that AZ's NAT ----
+# One private RT per AZ (Steve's call at P3, when a single NAT still served both). Route tables are
+# free, and the layout paid off at P37: moving to per-AZ NATs was a one-line repoint of each RT's
+# default route to its local NAT — no restructuring. RT i -> NAT i, both in AZ i.
 
 resource "aws_route_table" "private" {
   count = var.az_count
@@ -137,7 +158,7 @@ resource "aws_route" "private_nat" {
 
   route_table_id         = aws_route_table.private[count.index].id
   destination_cidr_block = "0.0.0.0/0"
-  nat_gateway_id         = aws_nat_gateway.this.id
+  nat_gateway_id         = aws_nat_gateway.this[count.index].id
 }
 
 resource "aws_route_table_association" "private" {

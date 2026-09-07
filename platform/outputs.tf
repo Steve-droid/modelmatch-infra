@@ -1,6 +1,6 @@
 # Platform-stack outputs. Re-exported from the VPC module so P4 (EKS) can consume vpc_id + subnet
-# IDs, and so the day-end orphan ritual can check the NAT / EIP by ID. Also available to any future
-# terraform_remote_state consumer.
+# IDs, and so the post-destroy orphan ritual can check the per-AZ NATs / EIPs by ID. Also available to
+# any future terraform_remote_state consumer.
 output "vpc_id" {
   description = "VPC ID (P4 EKS cluster + node group)."
   value       = module.vpc.vpc_id
@@ -22,18 +22,23 @@ output "public_route_table_id" {
 }
 
 output "private_route_table_ids" {
-  description = "Per-AZ private route table IDs (each default route -> the single NAT; S3 endpoint attached; route verification)."
+  description = "Per-AZ private route table IDs, ordered by AZ (each default route -> its own AZ's NAT; S3 endpoint attached; route verification)."
   value       = module.vpc.private_route_table_ids
 }
 
-output "nat_gateway_id" {
-  description = "Single NAT gateway ID (orphan check)."
-  value       = module.vpc.nat_gateway_id
+output "nat_gateway_ids" {
+  description = "Per-AZ NAT gateway IDs, ordered by AZ (P37). Orphan check: az_count while up, 0 after destroy."
+  value       = module.vpc.nat_gateway_ids
 }
 
-output "nat_eip_allocation_id" {
-  description = "NAT Elastic IP allocation ID (orphan check)."
-  value       = module.vpc.nat_eip_allocation_id
+output "nat_eip_allocation_ids" {
+  description = "Per-AZ NAT Elastic IP allocation IDs, ordered by AZ (orphan check: none left unattached after destroy)."
+  value       = module.vpc.nat_eip_allocation_ids
+}
+
+output "nat_public_ips" {
+  description = "Per-AZ NAT public IPs, ordered by AZ — what a pod in AZ i egresses as (P40 drill evidence)."
+  value       = module.vpc.nat_public_ips
 }
 
 output "s3_vpc_endpoint_id" {

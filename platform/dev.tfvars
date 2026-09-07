@@ -9,7 +9,7 @@ aws_region = "ap-south-1"
 # --- VPC (P3) ---
 vpc_name_prefix = "modelmatch"
 vpc_cidr        = "10.0.0.0/16"
-az_count        = 2    # 2 AZs -> 2 public + 2 private subnets
+az_count        = 2    # 2 AZs -> 2 public + 2 private subnets + 2 NATs (one per AZ since P37)
 subnet_newbits  = 4    # /16 + 4 = /20 subnets (4096 IPs each); 4 carved from the /16
 enable_eks_tags = true # stamp kubernetes.io/role/*; cluster-name tag passed to the VPC module in P4
 
