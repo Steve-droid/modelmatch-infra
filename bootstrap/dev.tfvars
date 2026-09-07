@@ -20,3 +20,15 @@ ecr_repository_names = ["modelmatch-backend", "modelmatch-frontend", "modelmatch
 # Renamed with the account suffix at P32 (2026-09-06): the bare name was still held by the closed
 # bootcamp account (AWS keeps a closed account's resources ~90 days) → BucketAlreadyExists. ---
 ingestion_bucket_name = "modelmatch-ingestion-sources-957261948820"
+
+# --- P34b budget kill switch (2026-09-07) — Budgets 90% ACTUAL -> SNS -> Lambda -> CodeBuild teardown ---
+killswitch_lambda_dry_run        = "1" # "1" while testing (plan-only builds); flip to "0" to arm the real teardown
+killswitch_trigger_percent       = 90  # must match the 90% ACTUAL notification in budget.tf
+killswitch_build_timeout_minutes = 45
+killswitch_log_retention_days    = 90
+
+codebuild_image              = "aws/codebuild/amazonlinux-x86_64-standard:5.0"
+terraform_version            = "1.15.5"                                                           # same as the laptop (S3-native locking needs >= 1.10)
+terraform_sha256_linux_amd64 = "702b2136af6728c8ff037f843dd2dbce2b7ad88786b7381d1d72aefa250f601c" # from releases.hashicorp.com SHA256SUMS, 2026-09-07
+infra_repo_url               = "https://github.com/Steve-droid/modelmatch-infra.git"
+infra_repo_branch            = "main"

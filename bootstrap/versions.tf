@@ -9,5 +9,10 @@ terraform {
       source  = "hashicorp/aws"
       version = "~> 5.0"
     }
+    # P34b — zips bootstrap/lambda/killswitch.py for the kill-switch Lambda (official provider; allowed).
+    archive = {
+      source  = "hashicorp/archive"
+      version = "~> 2.4"
+    }
   }
 }
