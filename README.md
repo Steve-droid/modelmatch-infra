@@ -52,7 +52,7 @@ split into **three root stacks with separate state**:
 ```
 modelmatch-infra/
 ├── bootstrap/   # PERSISTENT — applied once, NEVER in the daily destroy
-│   └── S3 state bucket + lock (P1) · AWS Budget+SNS (P2) · ECR repos (P5) · S3 ingestion bucket (P6)
+│   └── S3 state bucket + lock (P1) · AWS Budget+SNS (P2) · ECR repos (P5) · S3 ingestion bucket (P6) · budget kill switch (P34b)
 ├── platform/    # EPHEMERAL — `apply` at day start / `destroy` at day end   ← the ONLY stack destroyed daily
 │   └── VPC + 1×NAT (P3) · EKS+OIDC+nodes (P4) · IRSA roles A/B (P7) · ArgoCD bootstrap + app namespace (P9/P10)
 ├── jenkins/     # PERSISTENT — graded CI controller; survives every platform destroy (P16)
@@ -80,10 +80,11 @@ modelmatch-infra/
 
 ```
 modelmatch-infra/
-├── bootstrap/   backend.tf · budget.tf · ecr.tf · ingestion.tf · sns.tf · main.tf · variables.tf · dev.tfvars · …
+├── bootstrap/   backend.tf · budget.tf · ecr.tf · ingestion.tf · sns.tf · killswitch.tf · lambda/killswitch.py · main.tf · variables.tf · dev.tfvars · …
 ├── platform/    backend.tf · vpc.tf · eks.tf · irsa.tf · argocd.tf · namespaces.tf · variables.tf · dev.tfvars · …
 ├── jenkins/     backend.tf · main.tf · iam.tf · variables.tf · dev.tfvars · outputs.tf · …
 ├── modules/     vpc · eks · ecr · iam-irsa · jenkins-controller   (our own only)
+├── scripts/     teardown-platform.sh (the platform teardown, DRY_RUN=1 default) · teardown-buildspec.yml (its CodeBuild wrapper)
 ├── docs/        diagrams (E10 infra foundation)
 ├── README.md · CLAUDE.md · .gitignore
 ```
@@ -178,6 +179,46 @@ pre-destroy can't run. Instead:
 Then run the orphan check; confirm `bootstrap/` + `jenkins/` survived. (After a full teardown the
 in-cluster Postgres DB is gone — `reclaimPolicy: Delete` — so re-seed on the next bring-up.)
 
+### Automated teardown — `scripts/teardown-platform.sh` (budget kill switch + final teardown)
+
+Since P34b (2026-09-07) the nodes=0 path above **is a script**, `scripts/teardown-platform.sh`, runnable
+from a laptop or from the CodeBuild project **`modelmatch-platform-teardown`** (bootstrap stack,
+`bootstrap/killswitch.tf`). It needs **no cluster auth** — only the AWS API + Terraform state:
+
+1. scale the managed node group to 0 and wait for the instances to go (kills the in-cluster CCM/CSI so
+   nothing re-creates what is deleted next — reproduces the nodes=0 state on purpose);
+2. delete the CCM-created ingress **NLB** by its `kubernetes.io/cluster/<name>` tag (bounded poll);
+3. `terraform state rm` the 6 in-cluster-only addresses (skips the Helm-uninstall stall);
+4. `terraform -chdir=platform destroy -var-file=dev.tfvars -auto-approve`;
+5. delete the detached CSI EBS volumes (CNPG PVCs) by cluster tag;
+6. print the orphan check (NAT / unattached EIP / LBs / `available` EBS — all 0 after a live run).
+
+**`DRY_RUN=1` is the default** (and the CodeBuild project's default): every step is read-only —
+`terraform plan -destroy -refresh=false -lock=false` + lists. Every wait is capped and prints a `TIMEOUT`
+marker; the last line is always `teardown-platform: mode=… rc=…`. An empty platform state exits 0.
+
+Two things run it:
+
+- **The budget kill switch (P34b):** the **90% ACTUAL** notification of `modelmatch-monthly-cost` → SNS
+  `modelmatch-budget-alerts` (us-east-1) → Lambda `modelmatch-budget-killswitch` (us-east-1; fires on the
+  ACTUAL ≥ 90% alert text for our budget **or** when the Budgets API reports spend/limit ≥ 0.9) →
+  `codebuild:StartBuild` cross-region with **`DRY_RUN=0`**. Build state changes are emailed via
+  EventBridge → SNS `modelmatch-killswitch-events`. Verified 2026-09-07: dry-run build green (plan =
+  43 to destroy, rc=0, ~70 s), synthetic SNS publish → Lambda → build start in CloudWatch Logs; then armed.
+- **The final teardown (P47), on demand** — `terraform -chdir=bootstrap output killswitch_final_teardown_cmd`:
+  ```bash
+  aws codebuild start-build --region ap-south-1 --project-name modelmatch-platform-teardown \
+    --environment-variables-override name=DRY_RUN,value=0,type=PLAINTEXT
+  ```
+  Follow it in CloudWatch `/aws/codebuild/modelmatch-platform-teardown`; then run the orphan check
+  yourself once more and confirm `bootstrap/` + `jenkins/` survived.
+
+> The build's service role is **AdministratorAccess fenced by explicit Denies** (regions outside
+> ap-south-1/us-east-1, deleting the state/ingestion buckets, ECR/budget/SNS/Lambda/CodeBuild deletes,
+> destructive EC2 calls on `stack=jenkins`): a hand-built least-privilege policy cannot be proven by a
+> dry run, and one missing action would leave a half-destroyed platform at the exact moment the budget
+> is exhausted. A conscious trade-off, documented in the HLD §7.
+
 > **Note on time limits:** Terraform's *own* per-resource destroy retry (the `Still destroying … NNm
 > elapsed` line on `aws_vpc`) has **no client-side cap** — it loops on a dependency violation for many
 > minutes. The fix is never a longer timeout; it's to inspect the VPC's remaining SGs/ENIs and clear the
@@ -197,14 +238,21 @@ The financial ground-truth backstop, created **early** (before the first EKS app
 `bootstrap/` stack so it survives the daily `platform/` destroy.
 
 ```
-  aws_budgets_budget (modelmatch-monthly-cost, $25/mo, COST)
-        │   notify @ 80% ACTUAL  +  100% FORECASTED   (both % of the cap)
+  aws_budgets_budget (modelmatch-monthly-cost, $110/mo GROSS — credits not netted out)
+        │   notify @ 80% ACTUAL  +  90% ACTUAL (kill-switch trigger)  +  100% FORECASTED
         ├──────────────────────────────────────────────┐
         ▼                                               ▼
   subscriber_email_addresses              subscriber_sns_topic_arns
   → stevelevit230@gmail.com               → aws_sns_topic modelmatch-budget-alerts ⚠ us-east-1
-    (RELIABLE channel)                       (topic policy: allow budgets.amazonaws.com to Publish)
+    (RELIABLE channel)                       ├─ email subscription (human trace)
+                                             └─ Lambda modelmatch-budget-killswitch (P34b) → CodeBuild teardown
 ```
+
+- **Gross, not net (Phase 2, 2026-09-06):** the account runs on Free Tier credits; the Terraform default
+  `include_credit = true` would keep the measured "actual" near $0 until the credit was gone. `cost_types`
+  tracks gross usage so the thresholds mean what they say.
+- **90% ACTUAL = the kill switch** (see "Automated teardown" above): Budgets refreshes a few times a day,
+  so the automated teardown lands at roughly 90% + one refresh of burn — still under the credit.
 
 - **Budget-native email** is the **reliable** channel (no unsubscribe link → Gmail link-prefetch can't
   silently deactivate it).

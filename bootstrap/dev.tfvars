@@ -22,7 +22,7 @@ ecr_repository_names = ["modelmatch-backend", "modelmatch-frontend", "modelmatch
 ingestion_bucket_name = "modelmatch-ingestion-sources-957261948820"
 
 # --- P34b budget kill switch (2026-09-07) — Budgets 90% ACTUAL -> SNS -> Lambda -> CodeBuild teardown ---
-killswitch_lambda_dry_run        = "1" # "1" while testing (plan-only builds); flip to "0" to arm the real teardown
+killswitch_lambda_dry_run        = "0" # ARMED 2026-09-07 after the dry-run build + synthetic SNS test passed; "1" = plan-only builds (testing)
 killswitch_trigger_percent       = 90  # must match the 90% ACTUAL notification in budget.tf
 killswitch_build_timeout_minutes = 45
 killswitch_log_retention_days    = 90
