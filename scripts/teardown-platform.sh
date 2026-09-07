@@ -91,8 +91,11 @@ if [[ -z "$("${TF[@]}" state list -no-color 2>/dev/null)" ]]; then
 fi
 CLUSTER_NAME="$("${TF[@]}" output -raw cluster_name)"
 NODEGROUP_NAME="$("${TF[@]}" output -raw node_group_name)"
-NAT_GATEWAY_ID="$("${TF[@]}" output -raw nat_gateway_id)"
-log "cluster=$CLUSTER_NAME nodegroup=$NODEGROUP_NAME nat=$NAT_GATEWAY_ID"
+# NAT ids are informational here (the orphan check counts NATs by region, not by id). Tolerates both
+# output shapes: the P37 per-AZ list `nat_gateway_ids` and the pre-P37 singular `nat_gateway_id`.
+NAT_GATEWAY_IDS="$("${TF[@]}" output -json nat_gateway_ids 2>/dev/null | jq -r 'if type=="array" then .[] else . end' | tr '\n' ' ' || true)"
+[[ -z "${NAT_GATEWAY_IDS// /}" ]] && NAT_GATEWAY_IDS="$("${TF[@]}" output -raw nat_gateway_id 2>/dev/null || echo '?')"
+log "cluster=$CLUSTER_NAME nodegroup=$NODEGROUP_NAME nat=${NAT_GATEWAY_IDS% }"
 
 # ---------------------------------------------------------------------------------------------------
 step "1/6 scale node group to 0 (kills CCM/CSI so they cannot re-create what we delete)"
@@ -223,5 +226,5 @@ if [[ "$MODE" == LIVE ]]; then
     log "ORPHAN CHECK: ATTENTION — non-zero counts above; inspect by tag stack=platform."
   fi
 else
-  log "ORPHAN CHECK: informational only in DRY_RUN (platform is up, so NAT=1 / LB=1 are expected)."
+  log "ORPHAN CHECK: informational only in DRY_RUN (platform is up: NAT = one per AZ, LB = 1 are expected)."
 fi
