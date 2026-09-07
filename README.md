@@ -30,8 +30,9 @@ What it provisions (region **`ap-south-1`**):
 - **EKS** — latest in-support Kubernetes version (a stale version is a silent ~×6 control-plane charge);
   managed node group of **3× `t3a.medium`** (scaled at P23 for the EFK stack), CNI **prefix delegation**
   (110 pods/node), OIDC provider for IRSA.
-- **VPC** — public + private subnets across **2 AZs** with **exactly one NAT Gateway** (the named egress
-  SPOF — called out in the HLD); **single ingress load balancer** (FE + BE behind one LB, provisioned by
+- **VPC** — public + private subnets across **2 AZs** with **one NAT Gateway per AZ** (each AZ's private
+  route table defaults to its own NAT, so an AZ loss cannot take down the other AZ's egress — P37,
+  2026-09-07; it replaced the single-NAT SPOF the HLD listed as a limitation); **single ingress load balancer** (FE + BE behind one LB, provisioned by
   the in-cluster controller, not Terraform — see teardown).
 - **ECR** — two repos (backend, frontend) with a lifecycle policy (expire untagged, keep last N tagged).
 - **IAM + IRSA** — OIDC → **role A** (`modelmatch-backend-irsa`: Bedrock Nova ARNs + the S3 bucket) and
@@ -54,7 +55,7 @@ modelmatch-infra/
 ├── bootstrap/   # PERSISTENT — applied once, NEVER in the daily destroy
 │   └── S3 state bucket + lock (P1) · AWS Budget+SNS (P2) · ECR repos (P5) · S3 ingestion bucket (P6) · budget kill switch (P34b)
 ├── platform/    # EPHEMERAL — `apply` at day start / `destroy` at day end   ← the ONLY stack destroyed daily
-│   └── VPC + 1×NAT (P3) · EKS+OIDC+nodes (P4) · IRSA roles A/B (P7) · ArgoCD bootstrap + app namespace (P9/P10)
+│   └── VPC + NAT per AZ (P3/P37) · EKS+OIDC+nodes (P4) · IRSA roles A/B (P7) · ArgoCD bootstrap + app namespace (P9/P10)
 ├── jenkins/     # PERSISTENT — graded CI controller; survives every platform destroy (P16)
 │   └── Jenkins EC2 + EIP + SG + IAM instance profile + persistent EBS (/var/lib/jenkins) + backup bucket
 └── modules/     # our OWN reusable modules: vpc · eks · ecr · iam-irsa · jenkins-controller
@@ -131,7 +132,9 @@ After **every** `platform/` destroy, verify **zero** stray resources (tags make 
   volumes. A retained/forgotten volume is a cost orphan.
 - **Unattached EIPs** — an EIP *attached* to the Jenkins box is **fine** (persistent); only **unattached**
   EIPs are orphans.
-- **Stray NAT Gateways** — there should be exactly one while `platform/` is up, and zero after destroy.
+- **Stray NAT Gateways** — there should be exactly **`az_count` (2, one per AZ)** while `platform/` is up,
+  and zero after destroy. `terraform -chdir=platform output -json nat_gateway_ids` /
+  `nat_eip_allocation_ids` list them in AZ order (P37 replaced the singular `nat_gateway_id` output).
 
 > Every wait/poll in teardown is **time-capped** — surface "stuck", never hang silently. `terraform
 > destroy` on `platform/` has been run end-to-end many times (it works); the wrinkles below are
@@ -281,7 +284,7 @@ The financial ground-truth backstop, created **early** (before the first EKS app
   never go in tfvars (they reach the cluster via Secrets Manager + ESO/IRSA).
 - **No hardcoded secrets / no static AWS keys**; least-privilege IRSA; **tag every resource** via
   `default_tags` (`owner` / `project` / `environment` / `stack`).
-- **EKS** pinned to a current in-support version; **exactly 1 NAT GW** (single AZ, named SPOF); **ECR
+- **EKS** pinned to a current in-support version; **one NAT GW per AZ** (HA egress since P37); **ECR
   lifecycle policy** in place.
 - `apply` (platform) at day start, **`destroy` (platform) at day end**, then the orphan check. An AWS
   Budget is wired to an alert (P2).

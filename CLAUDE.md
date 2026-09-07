@@ -18,7 +18,7 @@ modelmatch-infra/
 │   └── S3 state bucket + lock (P1) · AWS Budget+SNS (P2) · ECR repos imported (P5) · S3 ingestion bucket (P6)
 │       · budget kill switch (P34b): Lambda (us-east-1) + CodeBuild `modelmatch-platform-teardown` running scripts/teardown-platform.sh
 ├── platform/    # EPHEMERAL — `apply` at day start / `destroy` at day end
-│   └── VPC+1×NAT (P3) · EKS+OIDC+nodes (P4) · IRSA roles A/B (P7)   ← the ONLY stack destroyed daily
+│   └── VPC + NAT per AZ (P3/P37) · EKS+OIDC+nodes (P4) · IRSA roles A/B (P7)   ← the ONLY stack destroyed daily
 ├── jenkins/     # PERSISTENT — CI controller; survives every platform destroy (P16, E11; Roey 2026-06-15)
 │   └── Jenkins EC2 + EIP + SG + IAM instance profile + persistent EBS (/var/lib/jenkins) + optional backup bucket
 ├── scripts/     # teardown-platform.sh (platform teardown, DRY_RUN=1 default) + its CodeBuild buildspec — never edit without a DRY_RUN=1 run
@@ -108,8 +108,10 @@ the var-file is always named explicitly so nothing is implicit.
   only intentionally).
 - **Orphan ritual** after every platform destroy: verify **zero** stray ELBs, **unattached EBS volumes**,
   unattached EIPs, NAT GWs. (An EIP *attached* to the Jenkins box is fine.) Tags make orphans findable.
-- **EKS:** latest in-support k8s version (stale = silent ~6× control-plane charge). **Exactly 1 NAT GW**
-  in a single AZ — named egress SPOF for the HLD. **ECR lifecycle policy** (expire untagged, keep last N).
+- **EKS:** latest in-support k8s version (stale = silent ~6× control-plane charge). **One NAT GW per AZ**
+  (`az_count` NATs, each private RT → its own AZ's NAT; P37, 2026-09-07 — replaced the single-NAT egress
+  SPOF so the P40 AZ-failure drill keeps egress in the surviving AZ; ≈ +$33/mo). **ECR lifecycle policy**
+  (expire untagged, keep last N).
 - **No hardcoded secrets, no static AWS keys.** In-cluster → Bedrock/S3 via **IRSA** (OIDC → role scoped
   to the 2 Nova ARNs + the S3 bucket → annotated on the backend SA). Auth on this machine = the default
   credential chain (`default` profile); no `profile` is hardcoded in HCL.
