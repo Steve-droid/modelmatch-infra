@@ -16,10 +16,12 @@ split into three root stacks with **separate state**:
 modelmatch-infra/
 ├── bootstrap/   # PERSISTENT — applied once, NEVER in the daily destroy
 │   └── S3 state bucket + lock (P1) · AWS Budget+SNS (P2) · ECR repos imported (P5) · S3 ingestion bucket (P6)
+│       · budget kill switch (P34b): Lambda (us-east-1) + CodeBuild `modelmatch-platform-teardown` running scripts/teardown-platform.sh
 ├── platform/    # EPHEMERAL — `apply` at day start / `destroy` at day end
 │   └── VPC+1×NAT (P3) · EKS+OIDC+nodes (P4) · IRSA roles A/B (P7)   ← the ONLY stack destroyed daily
 ├── jenkins/     # PERSISTENT — CI controller; survives every platform destroy (P16, E11; Roey 2026-06-15)
 │   └── Jenkins EC2 + EIP + SG + IAM instance profile + persistent EBS (/var/lib/jenkins) + optional backup bucket
+├── scripts/     # teardown-platform.sh (platform teardown, DRY_RUN=1 default) + its CodeBuild buildspec — never edit without a DRY_RUN=1 run
 └── modules/     # our OWN reusable modules (vpc, eks, ecr, iam-irsa, …) — populated from P3
 ```
 
