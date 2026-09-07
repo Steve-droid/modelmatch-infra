@@ -277,12 +277,13 @@ resource "aws_sns_topic" "killswitch_events" {
   name = "modelmatch-killswitch-events"
 }
 
-# SNS email: AWS sends a confirmation mail; click once (stays PendingConfirmation until then).
-resource "aws_sns_topic_subscription" "killswitch_events_email" {
-  topic_arn = aws_sns_topic.killswitch_events.arn
-  protocol  = "email"
-  endpoint  = var.alert_email
-}
+# No email subscription on purpose (decided 2026-09-07). An SNS email subscription carries an
+# UNAUTHENTICATED unsubscribe link in every mail, and a link-prefetching mail client follows it: the
+# first one died seconds after confirmation. Denying SNS:Unsubscribe in the topic policy is impossible
+# (out of topic-policy scope) and the authenticated-unsubscribe route needs a CLI confirm with the
+# emailed token — not worth it for a nice-to-have. The human trace is the budget-native 90% email
+# (budget.tf) + CloudWatch Logs; this topic stays as the EventBridge target for a future Slack/Lambda
+# subscriber.
 
 data "aws_iam_policy_document" "killswitch_events_topic" {
   statement {

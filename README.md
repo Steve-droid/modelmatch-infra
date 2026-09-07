@@ -202,8 +202,10 @@ Two things run it:
 - **The budget kill switch (P34b):** the **90% ACTUAL** notification of `modelmatch-monthly-cost` → SNS
   `modelmatch-budget-alerts` (us-east-1) → Lambda `modelmatch-budget-killswitch` (us-east-1; fires on the
   ACTUAL ≥ 90% alert text for our budget **or** when the Budgets API reports spend/limit ≥ 0.9) →
-  `codebuild:StartBuild` cross-region with **`DRY_RUN=0`**. Build state changes are emailed via
-  EventBridge → SNS `modelmatch-killswitch-events`. Verified 2026-09-07: dry-run build green (plan =
+  `codebuild:StartBuild` cross-region with **`DRY_RUN=0`**. Build state changes go via EventBridge to SNS
+  `modelmatch-killswitch-events` (no email subscriber — an SNS email's unauthenticated unsubscribe link
+  gets prefetched and kills it; the human trace is the budget-native 90% mail + CloudWatch Logs).
+  Verified 2026-09-07: dry-run build green (plan =
   43 to destroy, rc=0, ~70 s), synthetic SNS publish → Lambda → build start in CloudWatch Logs; then armed.
 - **The final teardown (P47), on demand** — `terraform -chdir=bootstrap output killswitch_final_teardown_cmd`:
   ```bash
