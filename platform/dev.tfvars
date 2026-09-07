@@ -15,7 +15,7 @@ enable_eks_tags = true # stamp kubernetes.io/role/*; cluster-name tag passed to 
 
 # --- EKS (P4) ---
 cluster_name = "modelmatch"
-k8s_version  = "1.36" # latest in-support (STANDARD_SUPPORT) as of 2026-06-13; NOT extended support
+k8s_version  = "1.36" # latest in-support (STANDARD_SUPPORT), re-verified 2026-09-06; NOT extended support
 
 node_instance_types = ["t3a.medium"]
 node_desired_size   = 3 # scaled 2->3 at P23 (E13): Elasticsearch/Kibana (EFK logging) is heavy on t3a.medium
@@ -31,11 +31,7 @@ endpoint_private_access = true
 # Steve's laptop public IP rotates (residential) — keep approved source IPs here as a list.
 # Trade-off: stale residential IPs can be reassigned to others, so prune entries no longer used.
 public_access_cidrs = [
-  "77.137.3.3/32",
-  "46.210.249.36/32",
-  "87.71.200.38/32",
-  "5.29.38.37/32",
-  "199.203.132.136/32",
+  "5.29.66.191/32", # 2026-09-06 (Phase 2 bring-up); June entries pruned
 ]
 
 # --- IRSA (P7) ---
