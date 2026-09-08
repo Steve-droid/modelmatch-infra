@@ -13,8 +13,10 @@ state_bucket_name = "modelmatch-tfstate-957261948820"
 budget_limit_amount = "110"                     # USD/month GROSS (credits not netted out); alerts only — Budgets never caps spend. 80%/90% ACTUAL + 100% FORECASTED
 alert_email         = "stevelevit230@gmail.com" # config, not a secret
 
-# --- ECR repos (P5 adopted in the old account; P32 creates them fresh in 957261948820) ---
-ecr_repository_names = ["modelmatch-backend", "modelmatch-frontend", "modelmatch-agent"]
+# --- ECR repos (P5 adopted in the old account; P32 creates them fresh in 957261948820).
+# `modelmatch-agent-security` was created by hand on 2026-09-08 (P38d, agent image split) and
+# adopted via `terraform import` the same day — see ecr.tf. ---
+ecr_repository_names = ["modelmatch-backend", "modelmatch-frontend", "modelmatch-agent", "modelmatch-agent-security"]
 
 # --- Ingestion source bucket (P6) — APP CONTRACT: the backend reads it from S3_BUCKET (gitops values).
 # Renamed with the account suffix at P32 (2026-09-06): the bare name was still held by the closed

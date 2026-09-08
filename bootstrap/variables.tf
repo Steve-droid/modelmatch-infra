@@ -23,7 +23,7 @@ variable "alert_email" {
 }
 
 variable "ecr_repository_names" {
-  description = "ECR repositories adopted into Terraform (FE / BE / agent). Imported in P5 — they predate Terraform and hold the live :1.0.0 images."
+  description = "ECR repositories managed by this stack (FE / BE / agent / agent-security). Imported in P5, created fresh in P32; agent-security imported in P38d."
   type        = list(string)
 }
 
