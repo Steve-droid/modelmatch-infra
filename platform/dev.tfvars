@@ -31,7 +31,10 @@ endpoint_private_access = true
 # Steve's laptop public IP rotates (residential) — keep approved source IPs here as a list.
 # Trade-off: stale residential IPs can be reassigned to others, so prune entries no longer used.
 public_access_cidrs = [
-  "5.29.66.191/32", # 2026-09-06 (Phase 2 bring-up); June entries pruned
+  "5.29.66.191/32",   # 2026-09-06 (Phase 2 bring-up); June entries pruned
+  "87.71.201.222/32", # 2026-09-09 (P38e deploy network) — applied out-of-band via
+                      # `aws eks update-cluster-config` (Steve's one-off OK); listed here so
+                      # `terraform plan` stays clean. Prune when no longer used.
 ]
 
 # --- IRSA (P7) ---
