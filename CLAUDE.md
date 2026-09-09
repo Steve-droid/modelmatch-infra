@@ -139,3 +139,11 @@ the var-file is always named explicitly so nothing is implicit.
 `feature/<story-id>-<desc>` → PR (self-review) → `main` (protected). The scaffold/shell commit was the
 one direct-to-`main` exception; everything since is on feature branches. Confirm with Steve before any
 commit/push. Local-first (no remote yet).
+
+## P38m DNS lifecycle (2026-09-09)
+
+The fourth root, `dns/`, owns the persistent Route 53 public zone and app/API aliases;
+state key `dns/terraform.tfstate`. Registration remains at Porkbun. The Kubernetes-owned
+NLB is read-only data. Keep the zone through platform teardown; disable aliases with
+`records_enabled=false`. Use `AWS_PROFILE=saa` and explicit `-var-file=dev.tfvars`.
+See [dns/README.md](dns/README.md) for delegation, staged HTTPS, rollback and rebuilds.

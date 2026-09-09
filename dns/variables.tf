@@ -1,0 +1,36 @@
+variable "aws_region" {
+  description = "Region of the existing ingress NLB. Route 53 itself is global."
+  type        = string
+}
+variable "aws_account_id" {
+  description = "Expected AWS account; provider rejects credentials for another account."
+  type        = string
+}
+variable "domain_name" {
+  description = "Registered domain whose public zone this stack owns (registration is separate)."
+  type        = string
+  validation {
+    condition     = can(regex("^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\\.)+[a-z]{2,63}$", var.domain_name))
+    error_message = "Use a lowercase DNS domain without a scheme, path, or trailing dot."
+  }
+}
+variable "app_hostname" {
+  description = "App hostname, either the zone apex or a name inside the zone."
+  type        = string
+}
+variable "api_hostname" {
+  description = "API hostname inside the zone, distinct from the app hostname."
+  type        = string
+}
+variable "records_enabled" {
+  description = "False removes the two NLB aliases before final platform teardown; keeps the zone."
+  type        = bool
+}
+variable "ingress_nlb_arn" {
+  description = "Verified ARN of the Kubernetes-owned ingress NLB. Read-only lookup, never a resource."
+  type        = string
+  validation {
+    condition     = can(regex("^arn:aws:elasticloadbalancing:[a-z0-9-]+:[0-9]{12}:loadbalancer/net/", var.ingress_nlb_arn))
+    error_message = "Supply a Network Load Balancer ARN from the ingress Service, not a hostname or IP."
+  }
+}
