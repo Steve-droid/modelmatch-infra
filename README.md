@@ -1,6 +1,6 @@
 # Modicum — Infrastructure
 
-> Modicum was previously ModelMatch. Repository and infrastructure identifiers retain `modelmatch` for compatibility. Custom DNS is deferred; this change does not alter infrastructure.
+> Modicum was previously ModelMatch. Repository and infrastructure identifiers retain `modelmatch` for compatibility. modicum.cloud is registered at Porkbun; the DNS/HTTPS connection is prepared for slice review. See [DNS runbook](dns/README.md).
 
 > **ACTIVE** (since P1). Terraform foundation for Modicum's AWS infrastructure — region
 > **`ap-south-1`**, account **`957261948820`**. Part of the [Modicum portfolio build](../CLAUDE.md);
@@ -10,7 +10,7 @@
 ## Table of Contents
 
 - [Overview](#overview)
-- [Three stacks, three lifecycles](#three-stacks-three-lifecycles)
+- [Four stacks, separate lifecycles](#four-stacks-separate-lifecycles)
 - [Technology Stack](#technology-stack)
 - [Repository Structure](#repository-structure)
 - [Prerequisites](#prerequisites)
@@ -47,10 +47,12 @@ What it provisions (region **`ap-south-1`**):
 > **No managed database (no RDS).** Per the build module the **database is in-cluster** (a CNPG cluster on
 > an EBS-CSI PVC — see [`modelmatch-gitops`](../modelmatch-gitops)). This repo provisions **no RDS**.
 
-## Three stacks, three lifecycles
+## Four stacks, separate lifecycles
 
 So the daily `destroy` can never nuke state, images, the budget, **or the CI controller**, Terraform is
-split into **three root stacks with separate state**:
+split into **four root stacks with separate state**. The persistent [`dns/`](dns/README.md) root
+owns the Route 53 public zone and app/API aliases; its state is `dns/terraform.tfstate`.
+Registration stays at Porkbun. The other three roots are:
 
 ```
 modelmatch-infra/
