@@ -1,9 +1,11 @@
 # CLAUDE.md — modelmatch-infra
 
-**Status: ACTIVE** (activated P1, 2026-06-10). Terraform for ModelMatch's AWS infrastructure.
+> Modicum was previously ModelMatch. Repository and infrastructure identifiers retain `modelmatch` for compatibility. Custom DNS is deferred; this change does not alter infrastructure.
+
+**Status: ACTIVE** (activated P1, 2026-06-10). Terraform for Modicum's AWS infrastructure.
 Region **`ap-south-1`**, account **`957261948820`**.
 
-> Part of the [ModelMatch portfolio build](../CLAUDE.md). Spec: `../docs/planning/architecture.md` §12,
+> Part of the [Modicum portfolio build](../CLAUDE.md). Spec: `../docs/planning/architecture.md` §12,
 > the locked DevOps backlog `../docs/planning/01-devops-backlog.md` (Epic **E10**), and
 > `../docs/instructions/lesson-03` (Infrastructure) + `lesson-04` (FinOps).
 

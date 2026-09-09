@@ -1,7 +1,9 @@
-# modelmatch-infra
+# Modicum — Infrastructure
 
-> **ACTIVE** (since P1). Terraform foundation for ModelMatch's AWS infrastructure — region
-> **`ap-south-1`**, account **`957261948820`**. Part of the [ModelMatch portfolio build](../CLAUDE.md);
+> Modicum was previously ModelMatch. Repository and infrastructure identifiers retain `modelmatch` for compatibility. Custom DNS is deferred; this change does not alter infrastructure.
+
+> **ACTIVE** (since P1). Terraform foundation for Modicum's AWS infrastructure — region
+> **`ap-south-1`**, account **`957261948820`**. Part of the [Modicum portfolio build](../CLAUDE.md);
 > spec in [`../docs/planning/architecture.md`](../docs/planning/architecture.md) §12 and
 > `../docs/instructions/lesson-03..04`. Operator guidance: [`CLAUDE.md`](CLAUDE.md).
 
@@ -21,7 +23,7 @@
 
 ## Overview
 
-Terraform (**own modules — no third-party/registry modules**) for ModelMatch's AWS infrastructure, built
+Terraform (**own modules — no third-party/registry modules**) for Modicum's AWS infrastructure, built
 cost-aware from the start: lifecycle discipline (`apply` at day start / `destroy` at day end) and the
 orphan-resource ritual are first-class.
 
