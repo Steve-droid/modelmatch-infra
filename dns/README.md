@@ -1,6 +1,6 @@
-# Modicum public DNS
+# Driftplain and Modicum public DNS
 
-**2026-09-09 — registered at Porkbun; connect-now follow-up prepared for review.**
+**September 12, 2026 — both domains registered at Porkbun, delegated to Route 53 and verified over trusted HTTPS.**
 App: `https://modicum.cloud`; API: `https://api.modicum.cloud`.
 The failed AWS registration remains a separate open billing-support case. Do not retry
 registration, transfer the domain or wait for Support before connecting DNS.
@@ -16,7 +16,7 @@ uses `-var-file=dev.tfvars`. Credentials come from `AWS_PROFILE=saa` on the lapt
 
 Modicum DNS is live. `additional_domains` adds **driftplain.dev** plus **api.driftplain.dev**
 inside this same persistent state, leaving the original zone and aliases untouched. The new
-registration and delegation are complete; trusted TLS and the runtime cutover are being verified.
+registration, delegation, trusted TLS and the runtime cutover are complete.
 The fresh plan is **3 add / 0 change / 0 destroy**. Use the same explicit `-var-file=dev.tfvars`.
 For the deployed zone, read `terraform -chdir=dns output -json additional_domains`
 and delegate driftplain.dev to its actual four nameservers. Do not change Modicum's delegation.
@@ -153,3 +153,10 @@ This is a public DNS ownership token, retained independently of the NLB aliases 
 verification survives `records_enabled=false` and platform teardown. Existing Google HTML
 verification at the application remains available. Add/change only the actual provider-issued
 proof, then review an additive plan before apply; do not generate a token or rotate credentials.
+
+During propagation, cached resolvers continued asking Porkbun's old nameservers. Its apex ALIAS
+and an exact `api.driftplain.dev` CNAME now also point to the existing NLB DNS name (TTL 600),
+allowing HTTP-01 validation and old caches to reach the same ingress. Route 53 delegation was
+never reverted; no IP was pinned. The original unused wildcard parking record remains at
+Porkbun. Route 53 remains authoritative and Terraform owns both zones, aliases and Google's
+public TXT proof. These registrar compatibility records do not replace the Terraform records.

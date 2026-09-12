@@ -1,8 +1,8 @@
 # CLAUDE.md — modelmatch-infra
 
-> Modicum was previously ModelMatch. Repository and infrastructure identifiers retain `modelmatch` for compatibility. Modicum DNS is live; P38r added and delegated Driftplain without replacing that zone. Public Google ownership TXT proof lives in the same DNS state.
+> Driftplain was previously Modicum / ModelMatch. Repository and infrastructure identifiers retain `modelmatch` for compatibility. Modicum DNS is live; P38r added and delegated Driftplain without replacing that zone. Public Google ownership TXT proof lives in the same DNS state.
 
-**Status: ACTIVE** (activated P1, 2026-06-10). Terraform for Modicum's AWS infrastructure.
+**Status: ACTIVE** (activated P1, 2026-06-10). Terraform for Driftplain's AWS infrastructure.
 Region **`ap-south-1`**, account **`957261948820`**.
 
 > Part of the [Modicum portfolio build](../CLAUDE.md). Spec: `../docs/planning/architecture.md` §12,
