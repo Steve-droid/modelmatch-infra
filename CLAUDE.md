@@ -1,5 +1,14 @@
 # CLAUDE.md — modelmatch-infra
 
+## Home migration override — September 12, 2026
+
+See `home/README.md` and `home/RESULTS.md` for the isolated home profile and live evidence.
+Steve authorized a single-node home K3s migration while keeping AWS production running.
+Do not apply the historical daily-destroy instructions during migration. Home local
+persistent storage is an intentional departure from EBS; production needs a reviewed
+Retain policy and tested off-machine backup/restore before cutover. Keep AWS Terraform
+and public DNS unchanged until their separately reviewed steps. Stop before commits.
+
 > Driftplain was previously Modicum / ModelMatch. Repository and infrastructure identifiers retain `modelmatch` for compatibility. Modicum DNS is live; P38r added and delegated Driftplain without replacing that zone. Public Google ownership TXT proof lives in the same DNS state.
 
 **Status: ACTIVE** (activated P1, 2026-06-10). Terraform for Driftplain's AWS infrastructure.
