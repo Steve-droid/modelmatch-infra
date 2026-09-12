@@ -43,7 +43,7 @@ variable "api_hostname" {
   type        = string
 }
 variable "records_enabled" {
-  description = "False removes the two NLB aliases before final platform teardown; keeps the zone."
+  description = "False removes all NLB aliases before final platform teardown; keeps zones and verification TXT."
   type        = bool
 }
 variable "ingress_nlb_arn" {
