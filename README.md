@@ -1,5 +1,11 @@
 # Driftplain — Infrastructure
 
+**Home migration (September 12, 2026):** the separate [home K3s bootstrap and staged
+migration plan](home-server/README.md) has a verified private single-node foundation. See
+[test results](home-server/RESULTS.md). AWS still serves production; public cutover and teardown
+require separate verification and approval. Historical AWS instructions below do not
+authorize destroying production during this migration.
+
 > **P38r — shipped September 12, 2026:** Driftplain is live at **https://driftplain.dev**, with **https://api.driftplain.dev** as its runtime API. Trusted HTTPS, Google domain ownership, published Google branding and real sign-in are verified. Modicum/sslip.io endpoints and operational identifiers remain compatible. FE/BE 1.0.24, agents 1.1.3; runtime cutover GitOps v0.18.22.
 
 

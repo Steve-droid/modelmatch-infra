@@ -14,15 +14,20 @@ budget_limit_amount = "110"                     # USD/month GROSS (credits not n
 alert_email         = "stevelevit230@gmail.com" # config, not a secret
 
 # --- ECR repos (P5 adopted in the old account; P32 creates them fresh in 957261948820) ---
-ecr_repository_names = ["modelmatch-backend", "modelmatch-frontend", "modelmatch-agent"]
+ecr_repository_names = ["modelmatch-backend", "modelmatch-frontend", "modelmatch-agent", "modelmatch-agent-security"]
 
 # --- Ingestion source bucket (P6) — APP CONTRACT: the backend reads it from S3_BUCKET (gitops values).
 # Renamed with the account suffix at P32 (2026-09-06): the bare name was still held by the closed
 # bootcamp account (AWS keeps a closed account's resources ~90 days) → BucketAlreadyExists. ---
 ingestion_bucket_name = "modelmatch-ingestion-sources-957261948820"
 
+# E21: encrypted home-server backups, protected separately from state and ingestion data.
+home_server_backup_bucket_name       = "modelmatch-home-server-backups-957261948820"
+home_server_recovery_key_secret_name = "modelmatch/home-server/recovery-key-v1"
+home_server_recovery_operator_arn    = "arn:aws:iam::957261948820:user/steve"
+
 # --- P34b budget kill switch (2026-09-07) — Budgets 90% ACTUAL -> SNS -> Lambda -> CodeBuild teardown ---
-killswitch_lambda_dry_run        = "0" # ARMED 2026-09-07 after the dry-run build + synthetic SNS test passed; "1" = plan-only builds (testing)
+killswitch_lambda_dry_run        = "1" # E21 migration safeguard: plan-only; live apply requires Steve's approval. Keep budget alerts and token caps.
 killswitch_trigger_percent       = 90  # must match the 90% ACTUAL notification in budget.tf
 killswitch_build_timeout_minutes = 45
 killswitch_log_retention_days    = 90

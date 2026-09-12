@@ -52,6 +52,21 @@ output "ingestion_bucket_arn" {
   value       = aws_s3_bucket.ingestion.arn
 }
 
+output "home_server_backup_bucket_name" {
+  description = "Dedicated private destination for encrypted home-server backups."
+  value       = aws_s3_bucket.home_server_backups.id
+}
+
+output "home_server_backup_bucket_arn" {
+  description = "Backup bucket ARN for the separately reviewed home-server uploader/restore roles."
+  value       = aws_s3_bucket.home_server_backups.arn
+}
+
+output "home_server_recovery_key_secret_arn" {
+  description = "Operator recovery-key secret metadata; private value is never read by Terraform."
+  value       = aws_secretsmanager_secret.home_server_recovery_key.arn
+}
+
 # --- P34b budget kill switch (killswitch.tf) ---
 output "killswitch_codebuild_project" {
   description = "CodeBuild project that tears down platform/ (the budget kill switch; also the P47 final teardown)."

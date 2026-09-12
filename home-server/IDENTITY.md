@@ -1,7 +1,7 @@
 # HM2 home-server AWS identity — September 13, 2026
 
-**IAM Roles Anywhere is selected. Local implementation only; review before commits/cloud
-changes.** No operational CA, leaf certificate, AWS identity resource, credential or runtime installation
+**IAM Roles Anywhere is selected. Source merged in PR #18; enrollment and deployment
+remain pending. Future slices retain commit/cloud review gates.** No operational CA, leaf certificate, AWS identity resource, credential or runtime installation
 has been created. Existing recovery-key custody is complete and is not repeated here.
 
 Steve approved the certificate operating design in this session: a private CA signing key
@@ -70,9 +70,10 @@ new identity state prefix, without rewriting bootstrap's existing guardrails. Es
 before the trust anchor. `prevent_destroy` protects the anchor, profiles, roles and guard.
 It is not protection from an AWS administrator changing policies/configuration.
 
-Review the *complete current working tree*. Earlier budget/S3/ECR changes remain uncommitted
-and must never be replaced by infra HEAD alone. This slice neither applies bootstrap nor
-touches the armed-state setting: the approved budget safeguard stays `DRY_RUN=1`.
+The separately approved publication of earlier HM2 work includes the full applied
+budget/S3/ECR and recovery-custody configuration. Use current main with a fresh reviewed
+plan; historical partial checkouts must not be applied. The approved budget safeguard
+stays `DRY_RUN=1`; source publication does not apply cloud changes.
 After deployment, disabling authentication means `home_server_sessions_enabled=false`,
 not changing the resource-creation flag (which would propose protected destruction).
 
