@@ -19,6 +19,39 @@ locals {
     app = var.app_hostname
     api = var.api_hostname
   }
+  additional_hosts = merge({}, [for domain, hosts in var.additional_domains : {
+    for role, host in { app = hosts.app_hostname, api = hosts.api_hostname } :
+    "${domain}/${role}" => { domain = domain, hostname = host }
+  }]...)
+}
+
+# A rebrand adds a separate zone; the original zone and resource addresses stay
+# intact so existing app sessions and pasted CI snippets keep their endpoints.
+resource "aws_route53_zone" "additional" {
+  for_each = var.additional_domains
+  name     = each.key
+  comment  = "Product app and API; managed by the persistent DNS stack"
+  lifecycle {
+    prevent_destroy = true
+  }
+}
+
+resource "aws_route53_record" "additional" {
+  for_each = var.records_enabled ? local.additional_hosts : {}
+  zone_id  = aws_route53_zone.additional[each.value.domain].zone_id
+  name     = each.value.hostname
+  type     = "A"
+  alias {
+    name                   = data.aws_lb.ingress[0].dns_name
+    zone_id                = data.aws_lb.ingress[0].zone_id
+    evaluate_target_health = false
+  }
+  lifecycle {
+    precondition {
+      condition     = !data.aws_lb.ingress[0].internal && data.aws_lb.ingress[0].load_balancer_type == "network"
+      error_message = "DNS must target the existing internet-facing ingress Network Load Balancer."
+    }
+  }
 }
 
 resource "aws_route53_record" "ingress" {

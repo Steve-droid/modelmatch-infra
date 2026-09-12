@@ -1,6 +1,6 @@
 # CLAUDE.md — modelmatch-infra
 
-> Modicum was previously ModelMatch. Repository and infrastructure identifiers retain `modelmatch` for compatibility. Custom DNS is deferred; this change does not alter infrastructure.
+> Modicum was previously ModelMatch. Repository and infrastructure identifiers retain `modelmatch` for compatibility. Modicum DNS is live; P38r prepares the additional Driftplain domain without replacing that zone.
 
 **Status: ACTIVE** (activated P1, 2026-06-10). Terraform for Modicum's AWS infrastructure.
 Region **`ap-south-1`**, account **`957261948820`**.

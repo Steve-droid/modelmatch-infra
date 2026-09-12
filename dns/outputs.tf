@@ -14,3 +14,12 @@ output "api_url" {
 output "records_enabled" {
   value = var.records_enabled
 }
+output "additional_domains" {
+  description = "Actual zone IDs/nameservers for registrar delegation; registration is separate."
+  value = { for domain, zone in aws_route53_zone.additional : domain => {
+    zone_id      = zone.zone_id
+    name_servers = zone.name_servers
+    app_url      = "https://${var.additional_domains[domain].app_hostname}"
+    api_url      = "https://${var.additional_domains[domain].api_hostname}"
+  } }
+}
