@@ -21,12 +21,14 @@ variable "app_hostname" {
 variable "additional_domains" {
   description = "Additional product domains retained alongside the original zone during rebrands."
   type = map(object({
-    app_hostname = string
-    api_hostname = string
+    app_hostname     = string
+    api_hostname     = string
+    verification_txt = optional(string)
   }))
   validation {
     condition = alltrue([for domain, hosts in var.additional_domains :
       can(regex("^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\\.)+[a-z]{2,63}$", domain)) &&
+      (hosts.verification_txt == null || can(regex("^google-site-verification=[A-Za-z0-9_-]{1,200}$", hosts.verification_txt))) &&
       domain != var.domain_name && hosts.app_hostname != hosts.api_hostname &&
       alltrue([for host in [hosts.app_hostname, hosts.api_hostname] :
         can(regex("^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\\.)+[a-z]{2,63}$", host)) &&
