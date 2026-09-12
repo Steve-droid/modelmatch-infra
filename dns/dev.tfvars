@@ -1,4 +1,4 @@
-# Modicum is registered and live. Driftplain is selected; registration is pending.
+# Modicum remains live; Driftplain was purchased and delegated on September 12, 2026.
 # Non-secret values. Pass explicitly with -var-file=dev.tfvars.
 aws_region      = "ap-south-1"
 aws_account_id  = "957261948820"
@@ -10,6 +10,8 @@ additional_domains = {
   "driftplain.dev" = {
     app_hostname = "driftplain.dev"
     api_hostname = "api.driftplain.dev"
+    # Public ownership proof supplied by Google Search Console on September 12, 2026.
+    verification_txt = "google-site-verification=lq9EA-ghdeh0oRTy81xK-8rUU2gtptfVIjwLcwUy5ZA"
   }
 }
 # Read-only discovery on 2026-09-09. Re-run scripts/discover-ingress-dns.py after a rebuild.

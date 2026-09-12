@@ -79,3 +79,13 @@ resource "aws_route53_record" "ingress" {
     }
   }
 }
+
+# Public Google ownership proof persists through platform teardown with the zone.
+resource "aws_route53_record" "additional_verification" {
+  for_each = { for domain, hosts in var.additional_domains : domain => hosts.verification_txt if hosts.verification_txt != null }
+  zone_id  = aws_route53_zone.additional[each.key].zone_id
+  name     = each.key
+  type     = "TXT"
+  ttl      = 300
+  records  = [each.value]
+}

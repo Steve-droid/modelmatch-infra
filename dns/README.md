@@ -12,13 +12,13 @@ new load balancer, TLS termination change, ExternalDNS controller, or static AWS
 Route 53 is global; the target NLB is in `ap-south-1`. Inputs have no defaults; every plan/apply/test
 uses `-var-file=dev.tfvars`. Credentials come from `AWS_PROFILE=saa` on the laptop.
 
-## P38r additional domain — prepared September 12, 2026
+## P38r additional domain — delegated September 12, 2026
 
 Modicum DNS is live. `additional_domains` adds **driftplain.dev** plus **api.driftplain.dev**
 inside this same persistent state, leaving the original zone and aliases untouched. The new
-registration is pending; do not apply or advertise these endpoints before purchase/review.
+registration and delegation are complete; trusted TLS and the runtime cutover are being verified.
 The fresh plan is **3 add / 0 change / 0 destroy**. Use the same explicit `-var-file=dev.tfvars`.
-After applying the reviewed `driftplain.tfplan`, read `terraform -chdir=dns output -json additional_domains`
+For the deployed zone, read `terraform -chdir=dns output -json additional_domains`
 and delegate driftplain.dev to its actual four nameservers. Do not change Modicum's delegation.
 
 `records_enabled=false` removes **all four** app/API aliases, retains both zones, and does not query
@@ -147,3 +147,9 @@ terraform -chdir=dns test -var-file=dev.tfvars
 
 Terraform tests mock the AWS provider: aliases/target wiring, disabling records after teardown,
 and rejecting out-of-zone or duplicate hostnames. They create no AWS resources.
+
+Google Search Console supplies `additional_domains["driftplain.dev"].verification_txt`.
+This is a public DNS ownership token, retained independently of the NLB aliases so ownership
+verification survives `records_enabled=false` and platform teardown. Existing Google HTML
+verification at the application remains available. Add/change only the actual provider-issued
+proof, then review an additive plan before apply; do not generate a token or rotate credentials.
