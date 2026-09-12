@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+  <key>Label</key><string>dev.driftplain.home-server-renewal</string>
+  <key>Disabled</key><true/>
+  <key>ProgramArguments</key><array>
+    <string>/Users/steve/.local/share/driftplain/home-server-identity/venv/bin/python3</string>
+    <string>/Users/steve/.local/share/driftplain/home-server-identity/home-server-renew.py</string>
+    <string>--config</string>
+    <string>/Users/steve/.local/share/driftplain/home-server-identity/renewal.json</string>
+  </array>
+  <key>RunAtLoad</key><true/>
+  <key>StartCalendarInterval</key><dict><key>Hour</key><integer>9</integer><key>Minute</key><integer>0</integer></dict>
+  <key>StartInterval</key><integer>3600</integer>
+  <key>Umask</key><integer>63</integer>
+  <key>StandardErrorPath</key><string>/Users/steve/.local/share/driftplain/home-server-identity/renewal.log</string>
+  <key>SoftResourceLimits</key><dict><key>Core</key><integer>0</integer></dict>
+</dict></plist>

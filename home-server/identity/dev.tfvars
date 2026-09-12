@@ -1,0 +1,10 @@
+# Explicit -var-file=dev.tfvars on every plan/test/apply. No deployment authorized.
+aws_region                      = "ap-south-1"
+home_server_account_id          = "957261948820"
+home_server_identity_enabled    = false
+home_server_sessions_enabled    = false
+home_server_ca_certificate_pem  = ""
+home_server_backup_bucket_name  = "modelmatch-home-server-backups-957261948820"
+home_server_bedrock_profile_ids = ["apac.amazon.nova-lite-v1:0", "global.amazon.nova-2-lite-v1:0"]
+home_server_bedrock_model_ids   = ["amazon.nova-lite-v1:0", "amazon.nova-2-lite-v1:0"]
+home_server_teardown_role_name  = "modelmatch-platform-teardown-codebuild"

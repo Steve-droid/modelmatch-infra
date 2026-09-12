@@ -1,0 +1,13 @@
+{
+  "enabled": false,
+  "keychain": "/Users/steve/Library/Keychains/login.keychain-db",
+  "ca_certificate": "/Users/steve/.local/share/driftplain/home-server-identity/issuer.crt",
+  "ca_sha256": "REPLACE_WITH_VERIFIED_PUBLIC_CA_FINGERPRINT",
+  "ledger": "/Users/steve/.local/share/driftplain/home-server-identity/ledger.json",
+  "encrypted_backup_directory": "/Users/steve/.local/share/driftplain/home-server-identity/encrypted-backups",
+  "ssh_key": "/Users/steve/.ssh/id_ed25519",
+  "aws_profile": "saa",
+  "backup_bucket": "modelmatch-home-server-backups-957261948820",
+  "recovery_recipient": "age1vcy5ynjmhrv587m5e8pvgm42gwrwxj4smzzcywhxckrl47xqea8qcewa7m",
+  "age_binary": "/opt/homebrew/bin/age"
+}
