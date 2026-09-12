@@ -1,8 +1,8 @@
 # Driftplain — Infrastructure
 
 **Home migration (September 12, 2026):** the separate [home K3s bootstrap and staged
-migration plan](home/README.md) has a verified private single-node foundation. See
-[test results](home/RESULTS.md). AWS still serves production; public cutover and teardown
+migration plan](home-server/README.md) has a verified private single-node foundation. See
+[test results](home-server/RESULTS.md). AWS still serves production; public cutover and teardown
 require separate verification and approval. Historical AWS instructions below do not
 authorize destroying production during this migration.
 

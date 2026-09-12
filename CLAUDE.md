@@ -2,12 +2,17 @@
 
 ## Home migration override — September 12, 2026
 
-See `home/README.md` and `home/RESULTS.md` for the isolated home profile and live evidence.
+See `home-server/README.md` and `home-server/RESULTS.md` for the isolated home profile and live evidence.
 Steve authorized a single-node home K3s migration while keeping AWS production running.
 Do not apply the historical daily-destroy instructions during migration. Home local
 persistent storage is an intentional departure from EBS; production needs a reviewed
 Retain policy and tested off-machine backup/restore before cutover. Keep AWS Terraform
 and public DNS unchanged until their separately reviewed steps. Stop before commits.
+
+IAM Roles Anywhere is selected for home AWS identity. The separate persistent root
+`home-server/identity/` and [identity runbook](home-server/IDENTITY.md) describe merged source with enrollment/deployment still pending;
+creation/session flags are disabled. Use its explicit `-var-file=dev.tfvars`; never include
+it in platform retirement. Automatic leaf renewal is staged on the Mac, not installed.
 
 > Driftplain was previously Modicum / ModelMatch. Repository and infrastructure identifiers retain `modelmatch` for compatibility. Modicum DNS is live; P38r added and delegated Driftplain without replacing that zone. Public Google ownership TXT proof lives in the same DNS state.
 
@@ -156,3 +161,12 @@ state key `dns/terraform.tfstate`. Registration remains at Porkbun. The Kubernet
 NLB is read-only data. Keep the zone through platform teardown; disable aliases with
 `records_enabled=false`. Use `AWS_PROFILE=saa` and explicit `-var-file=dev.tfvars`.
 See [dns/README.md](dns/README.md) for delegation, staged HTTPS, rollback and rebuilds.
+
+## Home-server naming
+
+Use `home_server` in Terraform/Python identifiers and `home-server` in filenames, directories
+and resource names. Avoid bare `home` for new server-specific names. Source lives in
+`home-server/`. Existing installed K3s identifiers (`driftplain-home`),
+its kubeconfig path and `10-home.conf` are compatibility values; changing them requires a
+separate runtime migration. Preserve historical evidence IDs, Git branch names and Linux
+`/home/steve` paths verbatim.

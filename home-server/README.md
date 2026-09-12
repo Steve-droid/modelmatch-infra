@@ -1,4 +1,4 @@
-# Driftplain home Kubernetes migration
+# Driftplain home-server Kubernetes migration
 
 Started September 12, 2026. This implements **E21 — durable home hosting** in the
 [active backlog](../../docs/planning/02-showcase-backlog.md), which must finish before P39.
@@ -6,9 +6,24 @@ Driftplain will stay online and be maintained; it has no showcase expiry date. *
 cutover and Steve's explicit teardown approval.** Steve approved the completed foundation
 and workspace consolidation on September 12, 2026; subsequent slices retain their review gates.
 
-## Current slice: private cluster foundation
+## Current slice: HM2 host recovery and operating design
 
-Source: infra `ef638ceff176915c9c3280ba032e5fda02c4b685` (current origin/main), branch
+HM1 and the recovery source are approved for publication. HM2 includes
+[the recovery drill](RECOVERY.md), [operating choices and costs](OPERATING-DESIGN.md)
+and `recovery-check.py`. The script never initiates a reboot or service interruption;
+it preserves a disposable witness across separately coordinated actions. Runtime evidence
+is recorded in [RESULTS.md](RESULTS.md). The [budget safeguard](BUDGET-SAFEGUARD.md) was
+approved and applied September 13: automatic teardown is now dry-run, with budget alerts
+retained. Steve selected S3 for hourly backups; [the protected bucket and recovery design](S3-BACKUPS.md)
+were approved and applied September 13; the bucket is empty pending the first encrypted export.
+[Recovery-key custody](RECOVERY-KEY.md) now uses AWS Secrets Manager plus a local-only Mac
+Keychain copy. Roles Anywhere and automatic certificate renewal are selected, with source
+merged in PR #18; issuer enrollment/deployment remain pending. Image, app-secret, public-route
+and rollback choices remain open. Key-custody proof does not complete the production restore gate.
+
+## Completed private cluster foundation
+
+Source: infra `ef638ceff176915c9c3280ba032e5fda02c4b685` (pre-HM1 source baseline), branch
 `feature/home-k3s-bootstrap`, now in the canonical `modelmatch-infra/` directory after
 workspace cleanup. The product repos are current; unrelated runtime data is preserved.
 
@@ -173,3 +188,17 @@ the preliminary migration stages. Completing the migration includes sustainable
 backups/monitoring/maintenance, accurate maintained-service wording, and verified public
 operation before P39. Replaced AWS resources are retired only after approval; the application
 itself is not retired. Completed power setup is documented in [POWER.md](POWER.md).
+
+## Explicit server naming — September 13, 2026
+
+Steve requested `home_server` identifiers and `home-server` names to avoid ambiguous `home`.
+The canonical source directory is now `modelmatch-infra/home-server/`; the backup
+resources use `home_server_backups`, and input/output names use `home_server_backup_bucket_*`.
+The applied bucket is `modelmatch-home-server-backups-957261948820`. Updated source smokes
+use `home-server-smoke-*` / `home-server-recovery-*` for new disposable namespaces.
+
+The installed node/context `driftplain-home`, `/home/steve/.kube/driftplain-home.yaml` and
+`10-home.conf` remain runtime compatibility values. No host or cluster reconfiguration was
+performed. Historical evidence and previously uploaded immutable scripts describe the original
+namespace names and hashes. Upload a new immutable copy of the current source before a future
+drill; do not present the old live-run hashes as a verification of the renamed source.

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Tests only a new, labelled disposable namespace on the explicit HOME cluster.
+# Tests only a new, labelled disposable namespace on the explicit HOME SERVER cluster.
 # No app resources, AWS credentials, LLM requests or production data are used.
 set -euo pipefail
 # kubectl does not need the root-only K3s server configuration.
@@ -26,7 +26,7 @@ print("Verified effective NoSwap configuration")
 "${k[@]}" -n kube-system rollout status deploy/coredns --timeout=180s
 "${k[@]}" -n kube-system rollout status deploy/local-path-provisioner --timeout=180s
 "${k[@]}" -n kube-system rollout status deploy/metrics-server --timeout=180s
-ns="home-smoke-$(date +%s)-$$"
+ns="home-server-smoke-$(date +%s)-$$"
 "${k[@]}" create namespace "$ns"
 "${k[@]}" label namespace "$ns" driftplain.dev/purpose=bootstrap-smoke \
   pod-security.kubernetes.io/enforce=restricted pod-security.kubernetes.io/enforce-version=v1.36
