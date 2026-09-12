@@ -168,6 +168,14 @@ data "aws_iam_policy_document" "platform_teardown_guardrails" {
     actions   = ["secretsmanager:*"]
     resources = [local.home_server_recovery_key_arn_pattern]
   }
+  # E21: teardown has no legitimate read/write/delete/configuration access to backups.
+  # Keep this identity deny even if somebody accidentally weakens the bucket policy.
+  statement {
+    sid       = "DenyAccessToHomeServerBackups"
+    effect    = "Deny"
+    actions   = ["s3:*"]
+    resources = [local.home_server_backup_bucket_arn, "${local.home_server_backup_bucket_arn}/*"]
+  }
   # Nothing outside our two regions (IAM/STS global calls carry aws:RequestedRegion = us-east-1).
   statement {
     sid       = "DenyOutsideOurRegions"

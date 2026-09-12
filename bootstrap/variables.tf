@@ -23,13 +23,27 @@ variable "alert_email" {
 }
 
 variable "ecr_repository_names" {
-  description = "ECR repositories adopted into Terraform (FE / BE / agent). Imported in P5 — they predate Terraform and hold the live :1.0.0 images."
+  description = "ECR repositories managed by this stack (FE / BE / agent / agent-security). Imported in P5, recreated in P32; agent-security adopted in P38d."
   type        = list(string)
 }
 
 variable "ingestion_bucket_name" {
   description = "S3 bucket for catalog-ingestion source docs (S5b). APP CONTRACT — must match the default of `s3_bucket` in modelmatch-backend/app/config.py; the P7 IRSA role-A policy scopes to its ARN."
   type        = string
+}
+
+variable "home_server_backup_bucket_name" {
+  description = "Dedicated persistent S3 bucket for encrypted Driftplain home-server backups; distinct from state and ingestion."
+  type        = string
+
+  validation {
+    condition = (
+      can(regex("^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$", var.home_server_backup_bucket_name)) &&
+      var.home_server_backup_bucket_name != var.state_bucket_name &&
+      var.home_server_backup_bucket_name != var.ingestion_bucket_name
+    )
+    error_message = "Use a distinct 3–63 character lowercase bucket name with letters, digits or hyphens."
+  }
 }
 
 variable "home_server_recovery_key_secret_name" {

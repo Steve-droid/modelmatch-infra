@@ -33,10 +33,10 @@ for a real backup upload/download/decryption and database restore in HM3.
 [Applied evidence](hm2-s3-applied.json): production API ready/db ok, two healthy CNPG instances,
 Lambda remains DRY_RUN=1, and the full follow-up Terraform plan reports no changes.
 
-Private reviewed plan: `/tmp/driftplain-hm2-home-server-s3.1G2NLw/reviewed.tfplan`; its hash is in the JSON
-summary. Raw plans/logs stay outside Git. Steve explicitly approved this scope; the saved plan
-and source hashes were verified before applying with normal state locking. Commit/push approval
-remains separate.
+The private reviewed plan formerly at `/tmp/driftplain-hm2-home-server-s3.1G2NLw/reviewed.tfplan`
+was removed in the approved September 13 cleanup; its hash remains in the JSON summary.
+Saved-plan/source hashes were verified before the original approved apply with normal locking.
+Source publication was separately approved September 13; future changes need a fresh reviewed plan.
 
 ## Backup contents and retention
 
