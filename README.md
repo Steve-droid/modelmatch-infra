@@ -1,5 +1,8 @@
 # Modicum — Infrastructure
 
+> **P38r (prepared September 12, 2026):** Driftplain / driftplain.dev is the selected rebrand, pending review and release. Modicum at modicum.cloud remains live. Internal modelmatch identifiers are retained.
+
+
 > Modicum was previously ModelMatch. Repository and infrastructure identifiers retain `modelmatch` for compatibility. modicum.cloud is registered at Porkbun; the DNS/HTTPS connection is prepared for slice review. See [DNS runbook](dns/README.md).
 
 > **ACTIVE** (since P1). Terraform foundation for Modicum's AWS infrastructure — region

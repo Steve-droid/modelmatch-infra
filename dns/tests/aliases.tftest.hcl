@@ -67,7 +67,7 @@ run "reject_internal_nlb" {
       load_balancer_type = "network"
     }
   }
-  expect_failures = [aws_route53_record.ingress]
+  expect_failures = [aws_route53_record.ingress, aws_route53_record.additional]
 }
 
 run "reject_non_network_lb" {
@@ -81,5 +81,54 @@ run "reject_non_network_lb" {
       load_balancer_type = "application"
     }
   }
-  expect_failures = [aws_route53_record.ingress]
+  expect_failures = [aws_route53_record.ingress, aws_route53_record.additional]
+}
+
+run "rebrand_adds_domain_and_preserves_original" {
+  command = plan
+  assert {
+    condition = aws_route53_zone.product.name == "modicum.cloud" && length(aws_route53_record.ingress) == 2 && length(aws_route53_zone.additional) == 1 && length(aws_route53_record.additional) == 2
+    error_message = "The original zone/aliases must survive alongside the new domain."
+  }
+  assert {
+    condition = aws_route53_record.additional["driftplain.dev/api"].name == "api.driftplain.dev" && aws_route53_record.additional["driftplain.dev/app"].alias[0].name == aws_route53_record.ingress["app"].alias[0].name
+    error_message = "New domain must use the same existing ingress load balancer."
+  }
+}
+run "disable_all_aliases_preserves_both_zones" {
+  command = plan
+  variables { records_enabled = false }
+  assert {
+    condition = length(aws_route53_record.ingress) == 0 && length(aws_route53_record.additional) == 0 && length(data.aws_lb.ingress) == 0 && length(aws_route53_zone.additional) == 1
+    error_message = "Teardown must remove aliases for both domains without destroying zones or reading the old NLB."
+  }
+}
+run "original_domain_only_remains_supported" {
+  command = plan
+  variables { additional_domains = {} }
+  assert {
+    condition = length(aws_route53_zone.additional) == 0 && length(aws_route53_record.additional) == 0 && length(aws_route53_record.ingress) == 2
+    error_message = "Empty additional_domains must preserve the original configuration."
+  }
+}
+run "reject_additional_external_host" {
+  command = plan
+  variables {
+    additional_domains = { "driftplain.dev" = { app_hostname = "driftplain.dev", api_hostname = "api.other.dev" } }
+  }
+  expect_failures = [var.additional_domains]
+}
+run "reject_additional_duplicate_host" {
+  command = plan
+  variables {
+    additional_domains = { "driftplain.dev" = { app_hostname = "driftplain.dev", api_hostname = "driftplain.dev" } }
+  }
+  expect_failures = [var.additional_domains]
+}
+run "reject_reusing_original_zone" {
+  command = plan
+  variables {
+    additional_domains = { "modicum.cloud" = { app_hostname = "modicum.cloud", api_hostname = "api.modicum.cloud" } }
+  }
+  expect_failures = [var.additional_domains]
 }
