@@ -1,0 +1,4 @@
+downloads/
+*.kubeconfig
+*.log
+__pycache__/

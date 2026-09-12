@@ -162,6 +162,12 @@ resource "aws_iam_role_policy_attachment" "platform_teardown_admin" {
 }
 
 data "aws_iam_policy_document" "platform_teardown_guardrails" {
+  statement {
+    sid       = "DenyAccessToHomeServerRecoveryKey"
+    effect    = "Deny"
+    actions   = ["secretsmanager:*"]
+    resources = [local.home_server_recovery_key_arn_pattern]
+  }
   # Nothing outside our two regions (IAM/STS global calls carry aws:RequestedRegion = us-east-1).
   statement {
     sid       = "DenyOutsideOurRegions"

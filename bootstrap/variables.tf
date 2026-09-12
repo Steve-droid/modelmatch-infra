@@ -32,6 +32,24 @@ variable "ingestion_bucket_name" {
   type        = string
 }
 
+variable "home_server_recovery_key_secret_name" {
+  description = "Dedicated operator-only recovery-key secret name; metadata only in Terraform."
+  type        = string
+  validation {
+    condition     = can(regex("^modelmatch/home-server/recovery-key-v[1-9][0-9]*$", var.home_server_recovery_key_secret_name))
+    error_message = "Use a versioned modelmatch/home-server/recovery-key-vN name, separate from runtime app secrets."
+  }
+}
+
+variable "home_server_recovery_operator_arn" {
+  description = "IAM principal allowed to read the recovery key; never a home-server workload role."
+  type        = string
+  validation {
+    condition     = can(regex("^arn:aws:iam::[0-9]{12}:(user|role)/.+$", var.home_server_recovery_operator_arn))
+    error_message = "Use an explicit IAM user or role ARN, not a wildcard or STS session ARN."
+  }
+}
+
 # --- P34b budget kill switch (killswitch.tf) ---
 
 variable "killswitch_lambda_dry_run" {

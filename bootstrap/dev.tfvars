@@ -32,3 +32,7 @@ terraform_version            = "1.15.5"                                         
 terraform_sha256_linux_amd64 = "702b2136af6728c8ff037f843dd2dbce2b7ad88786b7381d1d72aefa250f601c" # from releases.hashicorp.com SHA256SUMS, 2026-09-07
 infra_repo_url               = "https://github.com/Steve-droid/modelmatch-infra.git"
 infra_repo_branch            = "main"
+
+# HM2: operator-only backup recovery-key custody.
+home_server_recovery_key_secret_name = "modelmatch/home-server/recovery-key-v1"
+home_server_recovery_operator_arn    = "arn:aws:iam::957261948820:user/steve"
