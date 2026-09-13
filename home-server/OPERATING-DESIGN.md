@@ -5,7 +5,8 @@ and 30-day daily retention and a four-hour restore target. The backup bucket is 
 provisioned and verified. Recovery-key custody is AWS Secrets Manager plus a local-only Mac
 Keychain copy, selected September 13; see [the custody runbook](RECOVERY-KEY.md).
 IAM Roles Anywhere is selected for separate backup and Bedrock identities. The local
-[identity implementation](IDENTITY.md) awaits review/deployment; public route and remaining
+[identity implementation](IDENTITY.md) is merged but not deployed; additional
+[issuer enrollment/recovery/CRL preparation](ISSUER.md) is approved for local commits. Public route and remaining
 service choices are proposals.
 The approved budget safeguard is applied; AWS is still production. HM2 is not yet accepted.
 
