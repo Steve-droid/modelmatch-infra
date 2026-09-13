@@ -18,7 +18,8 @@ retained. Steve selected S3 for hourly backups; [the protected bucket and recove
 were approved and applied September 13; the bucket is empty pending the first encrypted export.
 [Recovery-key custody](RECOVERY-KEY.md) now uses AWS Secrets Manager plus a local-only Mac
 Keychain copy. Roles Anywhere and automatic certificate renewal are selected, with source
-merged in PR #18; issuer enrollment/deployment remain pending. Image, app-secret, public-route
+merged in PR #18; [issuer enrollment/recovery/CRL preparation](ISSUER.md) is approved for local
+commits, with operational enrollment/deployment still pending. Image, app-secret, public-route
 and rollback choices remain open. Key-custody proof does not complete the production restore gate.
 
 ## Completed private cluster foundation

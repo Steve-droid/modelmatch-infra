@@ -4,6 +4,11 @@
 remain pending. Future slices retain commit/cloud review gates.** No operational CA, leaf certificate, AWS identity resource, credential or runtime installation
 has been created. Existing recovery-key custody is complete and is not repeated here.
 
+**Next slice prepared locally, September 13:** [issuer enrollment/recovery/CRL tooling](ISSUER.md)
+adds native no-overwrite enrollment, independent complete-ledger recovery and signed CRLs
+with public AWS readback validation. Its source is approved for local commits; no operational enrollment
+or cloud/scheduler action has occurred. It introduces bundle/ledger schema 2 before first use.
+
 Steve approved the certificate operating design in this session: a private CA signing key
 in the Mac's local Keychain, an age-encrypted issuer recovery bundle in S3 and on the Mac,
 and 90-day workload certificates. Steve then required automatic renewal 30 days before
@@ -110,7 +115,7 @@ Keychain is off the Ubuntu host, not an air-gapped system. Mac compromise can ex
 authority. S3 and the AWS-held recovery key share an account; the Mac copy is the independent
 location. No additional Secrets Manager secret or AWS Private CA is selected.
 
-Proposed issuance parameters for the next implementation: dedicated self-signed RSA-3072
+Prepared issuance parameters, awaiting enrollment review: dedicated self-signed RSA-3072
 CA, SHA-256, two-year validity, X.509v3 `CA:true,pathlen:0`, `keyCertSign,cRLSign`; directly
 issued RSA-3072 leaves with `CA:false`, `digitalSignature`, one exact CN and 90-day validity.
 Verify leaves never outlive the CA. Keep a ledger of serial, subject, public-key fingerprint,
@@ -193,10 +198,12 @@ for both certificate validity and AWS signatures. No timer/alert has been instal
 
 **Revocation:** a CRL (certificate revocation list) is the CA-signed list of revoked serials.
 Roles Anywhere checks CRLs imported into AWS; it does not fetch a URL in the certificate or
-call OCSP. The next issuance slice must retain the ledger and support signed CRL creation,
-`import-crl`/`update-crl` with the correct trust-anchor ID, and verify `enabled=true` plus
-negative authentication. Keep CRLs current (propose monthly refresh with a 35-day nextUpdate,
-immediate refresh after revocation); do not rely on expiry behavior as an emergency control.
+call OCSP. [The prepared issuer workflow](ISSUER.md) retains the ledger, generates signed
+CRLs and validates public AWS readbacks; the operator procedure imports against the exact
+trust-anchor ARN and updates the recorded CRL ID. Live import/enabled-state and negative
+authentication proof remain gated. Keep CRLs current (prepared monthly refresh with a
+35-day nextUpdate, immediate refresh after revocation); do not rely on expiry behavior as
+an emergency control. Leaf renewal does not refresh CRLs; independent monitoring is required.
 
 **Lost/stolen host:** disable affected profiles immediately under applicable incident
 approval, add a deny-all policy on the affected workload role to stop already-issued sessions

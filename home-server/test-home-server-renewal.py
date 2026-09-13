@@ -53,8 +53,12 @@ class HomeServerRenewalTests(unittest.TestCase):
         return builder.sign(self.leaf_key, hashes.SHA256()).public_bytes(serialization.Encoding.PEM).decode()
 
     def setUp(self):
-        self.ledger = {"pending": {}, "issued": [], "revoked": []}
+        self.ledger = {"version": 2, "signing": dict(renew.issuer_tools.SIGNING),
+                       "ca_sha256": self.issuer.fingerprint(hashes.SHA256()).hex(),
+                       "issuer_certificate": renew.issuer_tools.pem(self.issuer),
+                       "crl_number": 0, "pending": {}, "issued": [], "revoked": []}
         self.current = renew.issue(self.csr(), "bedrock", self.key, self.issuer, self.instant - timedelta(days=61))
+        self.ledger["issued"].append({"identity": "bedrock", "certificate": self.current})
         self.backups = []
         self.installs = []
         self.saves = []
@@ -82,6 +86,7 @@ class HomeServerRenewalTests(unittest.TestCase):
 
     def test_not_due_does_not_issue_backup_or_install(self):
         self.current = renew.issue(self.csr(), "bedrock", self.key, self.issuer, self.instant - timedelta(days=59))
+        self.ledger["issued"] = [{"identity": "bedrock", "certificate": self.current}]
         self.assertEqual(self.run_renewal(), "not-due")
         self.assertFalse(self.installs or self.backups or self.saves)
 
@@ -89,7 +94,7 @@ class HomeServerRenewalTests(unittest.TestCase):
         self.assertEqual(self.run_renewal(), "renewed")
         cert = x509.load_pem_x509_certificate(self.current.encode())
         self.assertAlmostEqual((cert.not_valid_after_utc - self.instant).total_seconds(), 90 * 86400, delta=1)
-        self.assertEqual(len(self.ledger["issued"]), 1)
+        self.assertEqual(len(self.ledger["issued"]), 2)
         self.assertFalse(self.ledger["pending"])
         self.assertIn("bedrock", self.backups[0]["pending"])
         self.assertEqual(self.run_renewal(), "not-due")
@@ -102,7 +107,7 @@ class HomeServerRenewalTests(unittest.TestCase):
         pending = self.ledger["pending"]["bedrock"]["certificate"]
         self.assertEqual(self.run_renewal(), "renewed")
         self.assertEqual(self.installs, [pending])
-        self.assertEqual(len(self.ledger["issued"]), 1)
+        self.assertEqual(len(self.ledger["issued"]), 2)
 
     def test_lost_install_response_reconciles_without_reissue(self):
         def lost(operation, identity, cert=None):
@@ -115,7 +120,7 @@ class HomeServerRenewalTests(unittest.TestCase):
         issued = self.current
         self.assertEqual(self.run_renewal(), "renewed")
         self.assertEqual(self.current, issued)
-        self.assertEqual(len(self.ledger["issued"]), 1)
+        self.assertEqual(len(self.ledger["issued"]), 2)
 
     def test_final_backup_failure_is_marked_for_retry(self):
         def backup(value):
@@ -132,6 +137,7 @@ class HomeServerRenewalTests(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             self.run_renewal(backup=lambda _: (_ for _ in ()).throw(RuntimeError("offline")))
         self.current = renew.issue(self.csr(), "bedrock", self.key, self.issuer, self.instant)
+        self.ledger["issued"].append({"identity": "bedrock", "certificate": self.current})
         with self.assertRaises(ValueError):
             self.run_renewal()
         self.assertFalse(self.installs)
