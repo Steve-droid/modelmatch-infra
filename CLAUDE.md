@@ -1,4 +1,4 @@
-# CLAUDE.md — modelmatch-infra
+# CLAUDE.md — driftplain-infra
 
 ## Home migration override — September 12, 2026
 
@@ -14,7 +14,7 @@ IAM Roles Anywhere is selected for home AWS identity. The separate persistent ro
 creation/session flags are disabled. Use its explicit `-var-file=dev.tfvars`; never include
 it in platform retirement. Automatic leaf renewal is staged on the Mac, not installed.
 
-> Driftplain was previously Modicum / ModelMatch. Repository and infrastructure identifiers retain `modelmatch` for compatibility. Modicum DNS is live; P38r added and delegated Driftplain without replacing that zone. Public Google ownership TXT proof lives in the same DNS state.
+> Driftplain was previously Modicum / ModelMatch. The four public repositories use `driftplain-*`; existing infrastructure, images, database names, metrics and CI credential/environment identifiers retain `modelmatch` for compatibility. Modicum DNS is live; P38r added and delegated Driftplain without replacing that zone. Public Google ownership TXT proof lives in the same DNS state.
 
 **Status: ACTIVE** (activated P1, 2026-06-10). Terraform for Driftplain's AWS infrastructure.
 Region **`ap-south-1`**, account **`957261948820`**.
@@ -29,7 +29,7 @@ So the daily `destroy` can never nuke state, images, the budget, **or the CI con
 split into three root stacks with **separate state**:
 
 ```
-modelmatch-infra/
+driftplain-infra/
 ├── bootstrap/   # PERSISTENT — applied once, NEVER in the daily destroy
 │   └── S3 state bucket + lock (P1) · AWS Budget+SNS (P2) · ECR repos imported (P5) · S3 ingestion bucket (P6)
 │       · budget kill switch (P34b): Lambda (us-east-1) + CodeBuild `modelmatch-platform-teardown` running scripts/teardown-platform.sh
@@ -139,7 +139,7 @@ the var-file is always named explicitly so nothing is implicit.
   daily-destroyed `platform/` stack** so `destroy` can't take out CI, and still **outside the EKS cluster**
   (standalone EC2). ECR *is* here too (managed AWS service, outside the cluster).
 - **No managed database (no RDS).** The DB is **in-cluster** (Helm subchart + PVC — see
-  [`modelmatch-gitops`](../modelmatch-gitops)).
+  [`driftplain-gitops`](../driftplain-gitops)).
 
   > **Postgres persistence (forward note for gitops P13/P14, Roey 2026-06-10):** the PVC must be backed
   > by the **AWS EBS CSI driver** (EBS-backed StorageClass) — never hostPath / container disk. The volume

@@ -19,7 +19,7 @@ from botocore.awsrequest import AWSRequest
 from botocore.exceptions import CredentialRetrievalError
 
 ROOT = Path(__file__).resolve().parent
-BACKEND = ROOT.parent.parent / "modelmatch-backend"
+BACKEND = ROOT.parent.parent / "driftplain-backend"
 sys.path.insert(0, str(BACKEND))
 from app.llm.bedrock_client import BedrockClient
 

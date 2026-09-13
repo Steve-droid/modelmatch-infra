@@ -62,6 +62,6 @@ argocd_namespace          = "argocd"
 kubernetes_namespaces = ["argocd", "app", "monitoring", "logging"]
 
 # The root app syncs from the PUBLIC gitops repo over HTTPS — ArgoCD reads it anonymously, no credential.
-gitops_repo_url        = "https://github.com/Steve-droid/modelmatch-gitops.git"
+gitops_repo_url        = "https://github.com/Steve-droid/driftplain-gitops.git"
 gitops_target_revision = "main"
 gitops_apps_path       = "argocd/apps"

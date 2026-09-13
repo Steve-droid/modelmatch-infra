@@ -24,7 +24,7 @@ and rollback choices remain open. Key-custody proof does not complete the produc
 ## Completed private cluster foundation
 
 Source: infra `ef638ceff176915c9c3280ba032e5fda02c4b685` (pre-HM1 source baseline), branch
-`feature/home-k3s-bootstrap`, now in the canonical `modelmatch-infra/` directory after
+`feature/home-k3s-bootstrap`, now in the canonical `driftplain-infra/` directory after
 workspace cleanup. The product repos are current; unrelated runtime data is preserved.
 
 **Current administrator access:** after bootstrap, Steve enabled passwordless sudo with
@@ -192,7 +192,7 @@ itself is not retired. Completed power setup is documented in [POWER.md](POWER.m
 ## Explicit server naming — September 13, 2026
 
 Steve requested `home_server` identifiers and `home-server` names to avoid ambiguous `home`.
-The canonical source directory is now `modelmatch-infra/home-server/`; the backup
+The canonical source directory is now `driftplain-infra/home-server/`; the backup
 resources use `home_server_backups`, and input/output names use `home_server_backup_bucket_*`.
 The applied bucket is `modelmatch-home-server-backups-957261948820`. Updated source smokes
 use `home-server-smoke-*` / `home-server-recovery-*` for new disposable namespaces.
