@@ -1,5 +1,7 @@
 # Driftplain — Infrastructure
 
+[Website](https://driftplain.dev) · [Frontend](https://github.com/Steve-droid/driftplain-frontend) · [Backend](https://github.com/Steve-droid/driftplain-backend) · [Infra](https://github.com/Steve-droid/driftplain-infra) · [GitOps](https://github.com/Steve-droid/driftplain-gitops)
+
 **Home migration (September 12, 2026):** the separate [home K3s bootstrap and staged
 migration plan](home-server/README.md) has a verified private single-node foundation. See
 [test results](home-server/RESULTS.md). AWS still serves production; public cutover and teardown
@@ -9,12 +11,11 @@ authorize destroying production during this migration.
 > **P38r — shipped September 12, 2026:** Driftplain is live at **https://driftplain.dev**, with **https://api.driftplain.dev** as its runtime API. Trusted HTTPS, Google domain ownership, published Google branding and real sign-in are verified. Modicum/sslip.io endpoints and operational identifiers remain compatible. FE/BE 1.0.24, agents 1.1.3; runtime cutover GitOps v0.18.22.
 
 
-> Modicum was previously ModelMatch. Repository and infrastructure identifiers retain `modelmatch` for compatibility. modicum.cloud is registered at Porkbun; the DNS/HTTPS connection is prepared for slice review. See [DNS runbook](dns/README.md).
+> Driftplain was previously Modicum / ModelMatch. The four public repositories use `driftplain-*`; existing infrastructure, images, database names, metrics and CI credential/environment identifiers retain `modelmatch` for compatibility. Driftplain and retained Modicum DNS/HTTPS are live. See [DNS runbook](dns/README.md).
 
-> **ACTIVE** (since P1). Terraform foundation for Modicum's AWS infrastructure — region
-> **`ap-south-1`**, account **`957261948820`**. Part of the [Modicum portfolio build](../CLAUDE.md);
-> spec in [`../docs/planning/architecture.md`](../docs/planning/architecture.md) §12 and
-> `../docs/instructions/lesson-03..04`. Operator guidance: [`CLAUDE.md`](CLAUDE.md).
+> **ACTIVE** (since P1). Terraform foundation for Driftplain's AWS infrastructure — region
+> **`ap-south-1`**, account **`957261948820`**. Part of the four-repository Driftplain project linked above.
+> Operator guidance: [`CLAUDE.md`](CLAUDE.md).
 
 ## Table of Contents
 
@@ -32,7 +33,7 @@ authorize destroying production during this migration.
 
 ## Overview
 
-Terraform (**own modules — no third-party/registry modules**) for Modicum's AWS infrastructure, built
+Terraform (**own modules — no third-party/registry modules**) for Driftplain's AWS infrastructure, built
 cost-aware from the start: lifecycle discipline (`apply` at day start / `destroy` at day end) and the
 orphan-resource ritual are first-class.
 
@@ -54,7 +55,7 @@ What it provisions (region **`ap-south-1`**):
   `JENKINS_HOME`), in its own root stack so the daily `destroy` can never take out CI.
 
 > **No managed database (no RDS).** Per the build module the **database is in-cluster** (a CNPG cluster on
-> an EBS-CSI PVC — see [`modelmatch-gitops`](../modelmatch-gitops)). This repo provisions **no RDS**.
+> an EBS-CSI PVC — see [`driftplain-gitops`](https://github.com/Steve-droid/driftplain-gitops)). This repo provisions **no RDS**.
 
 ## Four stacks, separate lifecycles
 
@@ -64,7 +65,7 @@ owns the Route 53 public zone and app/API aliases; its state is `dns/terraform.t
 Registration stays at Porkbun. The other three roots are:
 
 ```
-modelmatch-infra/
+driftplain-infra/
 ├── bootstrap/   # PERSISTENT — applied once, NEVER in the daily destroy
 │   └── S3 state bucket + lock (P1) · AWS Budget+SNS (P2) · ECR repos (P5) · S3 ingestion bucket (P6) · budget kill switch (P34b)
 ├── platform/    # EPHEMERAL — `apply` at day start / `destroy` at day end   ← the ONLY stack destroyed daily
@@ -93,7 +94,7 @@ modelmatch-infra/
 ## Repository Structure
 
 ```
-modelmatch-infra/
+driftplain-infra/
 ├── bootstrap/   backend.tf · budget.tf · ecr.tf · ingestion.tf · sns.tf · killswitch.tf · lambda/killswitch.py · main.tf · variables.tf · dev.tfvars · …
 ├── platform/    backend.tf · vpc.tf · eks.tf · irsa.tf · argocd.tf · namespaces.tf · variables.tf · dev.tfvars · …
 ├── jenkins/     backend.tf · main.tf · iam.tf · variables.tf · dev.tfvars · outputs.tf · …

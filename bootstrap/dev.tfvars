@@ -35,5 +35,5 @@ killswitch_log_retention_days    = 90
 codebuild_image              = "aws/codebuild/amazonlinux-x86_64-standard:5.0"
 terraform_version            = "1.15.5"                                                           # same as the laptop (S3-native locking needs >= 1.10)
 terraform_sha256_linux_amd64 = "702b2136af6728c8ff037f843dd2dbce2b7ad88786b7381d1d72aefa250f601c" # from releases.hashicorp.com SHA256SUMS, 2026-09-07
-infra_repo_url               = "https://github.com/Steve-droid/modelmatch-infra.git"
+infra_repo_url               = "https://github.com/Steve-droid/driftplain-infra.git"
 infra_repo_branch            = "main"

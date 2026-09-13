@@ -231,7 +231,7 @@ Successful stdout contains secrets and is **only** consumed by the SDK pipe. Nev
 a captured terminal, log the JSON or export its values as static environment variables.
 It does not cache credentials on disk or start a shared credential HTTP server.
 
-The existing [Bedrock client](../../modelmatch-backend/app/llm/bedrock_client.py) uses normal
+The existing [Bedrock client](../../driftplain-backend/app/llm/bedrock_client.py) uses normal
 boto3 discovery and retains its client. The SDK refreshes the process credentials on demand
 before expiry. During an advisory refresh failure, the SDK may continue with a still-valid
 session; mandatory refresh failure stops signing. There is no fallback to an administrator
